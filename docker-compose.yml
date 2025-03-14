@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # SQL Metrics Evaluator API
+  sql-metrics-evaluator:
+    build:
+      context: ./sql_metrics_evaluator
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///app/data/test.db
+      - EXECUTION_TIMEOUT=5000
+      - LOG_LEVEL=INFO
+      - API_PORT=8000
+    volumes:
+      - ./sql_metrics_evaluator/data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # LLM Comparison App Frontend (Development)
+  llm-comparison-app:
+    build:
+      context: ./llm-comparison-app
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_SQL_METRICS_EVALUATOR_API_URL=http://sql-metrics-evaluator:8000
+      - VITE_OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VITE_USE_MOCK_RESPONSES=${USE_MOCK_RESPONSES:-false}
+      - VITE_USE_MOCK_FOR_GPT4O_MINI=${USE_MOCK_FOR_GPT4O_MINI:-false}
+    volumes:
+      - ./llm-comparison-app:/app
+      - /app/node_modules
+    depends_on:
+      sql-metrics-evaluator:
+        condition: service_healthy 

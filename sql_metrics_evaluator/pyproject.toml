@@ -1,0 +1,63 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "sql-metrics-evaluator"
+version = "0.1.0"
+description = "A tool for evaluating SQL generation models with real-time metrics"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+sqlparse = "^0.4.4"
+sqlglot = "^19.9.0"
+fastapi = "^0.109.2"
+uvicorn = "^0.27.1"
+pydantic = "^2.6.1"
+sqlalchemy = "^2.0.27"
+pytest = "^7.4.3"
+pytest-cov = "^4.1.0"
+python-dotenv = "^1.0.0"
+psycopg2-binary = "^2.9.9"
+mo-sql-parsing = "^8.81.23054"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.2.1"
+mypy = "^1.8.0"
+black = "^24.1.1"
+isort = "^5.13.2"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "B", "I", "N", "UP", "ANN", "C4", "SIM", "ARG", "ERA"]
+ignore = ["ANN101", "ANN102", "ANN401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"
+addopts = "--cov=src" 
