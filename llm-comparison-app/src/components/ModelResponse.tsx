@@ -12,6 +12,7 @@ interface ModelResponseProps {
 
 const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading, error }) => {
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
   
   // Function to detect if the response is SQL
   const isSqlResponse = (response: string): boolean => {
@@ -117,12 +118,22 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                     </span>
                   )}
                 </div>
-                <button 
-                  className={`copy-button ${copySuccess ? 'success' : ''}`}
-                  onClick={() => copyToClipboard(extractSql(data.response))}
-                >
-                  {copySuccess ? 'Copied!' : 'Copy SQL'}
-                </button>
+                <div className="sql-actions">
+                  {data.explanation && (
+                    <button 
+                      className={`explanation-button ${showExplanation ? 'active' : ''}`}
+                      onClick={() => setShowExplanation(!showExplanation)}
+                    >
+                      {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
+                    </button>
+                  )}
+                  <button 
+                    className={`copy-button ${copySuccess ? 'success' : ''}`}
+                    onClick={() => copyToClipboard(extractSql(data.response))}
+                  >
+                    {copySuccess ? 'Copied!' : 'Copy SQL'}
+                  </button>
+                </div>
               </div>
               <SyntaxHighlighter 
                 language="sql" 
@@ -131,6 +142,13 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
               >
                 {extractSql(data.response)}
               </SyntaxHighlighter>
+              
+              {data.explanation && showExplanation && (
+                <div className="sql-explanation">
+                  <h4>Explanation</h4>
+                  <p>{data.explanation}</p>
+                </div>
+              )}
               
               <div className="advanced-metrics">
                 <h4>Advanced Metrics</h4>

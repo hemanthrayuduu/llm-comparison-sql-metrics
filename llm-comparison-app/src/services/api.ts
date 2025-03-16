@@ -6,6 +6,7 @@ export interface ModelResponse {
   model: string;
   prompt?: string;    // Added prompt property
   response: string;
+  explanation?: string; // Added explanation for the SQL query
   executionTime?: number;
   responseLength?: number;
   sqlQualityScore?: number;
@@ -36,6 +37,7 @@ export interface ModelResponse {
 
 export interface QueryRequest {
   query: string;
+  schema?: string; // Added schema parameter
 }
 
 // Define the SQL metrics evaluator API URL
@@ -105,11 +107,19 @@ const gpt4oMiniApi = axios.create({
 
 // Define an enhanced system prompt for better SQL generation
 const enhancedSystemPrompt = `You are an expert SQL assistant that translates natural language to SQL queries.
-- Always respond with a valid SQL query that addresses the user's request
+
+When provided with a database schema, use it to inform your SQL generation. If no schema is provided, make reasonable assumptions about the table structure.
+
+Your response should include:
+1. A valid SQL query that addresses the user's request
+2. A brief explanation of the SQL query and how it addresses the user's request
+
+Guidelines:
 - Use standard SQL syntax that works with most database systems
 - Include appropriate JOINs, WHERE clauses, and aggregations as needed
-- Format your response as a SQL query only, without explanations
-- If the request is ambiguous, make reasonable assumptions about table structure`;
+- Use proper table and column names from the provided schema
+- If the request is ambiguous, make reasonable assumptions and explain them
+- Format your response with the SQL query first, followed by the explanation`;
 
 // Function to calculate SQL quality score
 const calculateSqlQuality = (sql: string): number => {
@@ -603,39 +613,107 @@ const createErrorResponse = (provider: string, modelName: string, prompt: string
   };
 };
 
+// Function to extract SQL and explanation from the response
+const extractSqlAndExplanation = (response: string): { sql: string, explanation: string } => {
+  // Default values
+  let sql = response;
+  let explanation = '';
+  
+  // Check if the response has both SQL and explanation
+  const lines = response.split('\n');
+  const sqlLines: string[] = [];
+  const explanationLines: string[] = [];
+  
+  let parsingExplanation = false;
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines
+    if (!trimmedLine) continue;
+    
+    // Check for explanation markers
+    if (trimmedLine.toLowerCase().includes('explanation:') || 
+        trimmedLine.toLowerCase().includes('this query') ||
+        trimmedLine.toLowerCase().startsWith('the above sql') ||
+        trimmedLine.toLowerCase().startsWith('this sql')) {
+      parsingExplanation = true;
+      explanationLines.push(trimmedLine);
+      continue;
+    }
+    
+    // If we're already parsing explanation, add to explanation lines
+    if (parsingExplanation) {
+      explanationLines.push(trimmedLine);
+    } 
+    // Otherwise, it's part of the SQL
+    else {
+      sqlLines.push(trimmedLine);
+    }
+  }
+  
+  // If we didn't find a clear explanation section but have multiple lines,
+  // assume the first part is SQL and the rest is explanation
+  if (explanationLines.length === 0 && sqlLines.length > 3) {
+    const splitIndex = Math.ceil(sqlLines.length * 0.7); // Assume 70% is SQL, rest is explanation
+    explanationLines.push(...sqlLines.splice(splitIndex));
+  }
+  
+  sql = sqlLines.join('\n');
+  explanation = explanationLines.join('\n');
+  
+  return { sql, explanation };
+};
+
 // Function to query the GPT 3.5 base model
-export const queryGptBase = async (query: string): Promise<ModelResponse> => {
+export const queryGptBase = async (query: string, schema?: string): Promise<ModelResponse> => {
   const startTime = Date.now();
   
   try {
     console.log('Requesting GPT base model...');
+    
+    // Prepare the messages array with or without schema
+    const messages = [
+      { role: "system", content: enhancedSystemPrompt }
+    ];
+    
+    // If schema is provided, include it in the user message
+    if (schema) {
+      messages.push({ 
+        role: "user", 
+        content: `Database Schema:\n${schema}\n\nQuery: ${query}` 
+      });
+    } else {
+      messages.push({ role: "user", content: query });
+    }
+    
     const response = await openaiApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT_BASE.id,
-      messages: [
-        { role: "system", content: enhancedSystemPrompt },
-        { role: "user", content: query }
-      ],
+      messages: messages,
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 800 // Increased to accommodate explanations
     });
     
     console.log('GPT base response:', response.data);
     
     const responseText = response.data.choices[0].message.content;
+    const { sql, explanation } = extractSqlAndExplanation(responseText);
+    
     const executionTime = roundToTwoDecimals((Date.now() - startTime) / 1000); // Convert to seconds and round
     const tokensGenerated = response.data.usage ? response.data.usage.completion_tokens : Math.floor(responseText.length / 4);
     const tokensPerSecond = executionTime > 0 ? roundToTwoDecimals(tokensGenerated / executionTime) : 0;
     
     // Get real-time metrics from the evaluator API
-    const metrics = await evaluateSqlMetrics(responseText, undefined, 'medium', executionTime, false, 'GPT');
+    const metrics = await evaluateSqlMetrics(sql, undefined, 'medium', executionTime, false, 'GPT');
     
     return {
       provider: 'OPENAI',
       model: MODEL_CONFIG.GPT_BASE.name,
       prompt: query,
-      response: responseText,
+      response: sql,
+      explanation: explanation,
       executionTime: executionTime,
-      responseLength: responseText.length,
+      responseLength: sql.length,
       sqlQualityScore: metrics.sqlQualityScore,
       tokensGenerated: tokensGenerated,
       tokensPerSecond: tokensPerSecond,
@@ -656,38 +734,54 @@ export const queryGptBase = async (query: string): Promise<ModelResponse> => {
 };
 
 // Function to query the fine-tuned GPT 3.5 model
-export const queryGptFinetuned = async (query: string): Promise<ModelResponse> => {
+export const queryGptFinetuned = async (query: string, schema?: string): Promise<ModelResponse> => {
   const startTime = Date.now();
   
   try {
     console.log('Requesting GPT fine-tuned model...');
+    
+    // Prepare the messages array with or without schema
+    const messages = [
+      { role: "system", content: enhancedSystemPrompt }
+    ];
+    
+    // If schema is provided, include it in the user message
+    if (schema) {
+      messages.push({ 
+        role: "user", 
+        content: `Database Schema:\n${schema}\n\nQuery: ${query}` 
+      });
+    } else {
+      messages.push({ role: "user", content: query });
+    }
+    
     const response = await openaiFinetunedApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT_FINETUNED.id,
-      messages: [
-        { role: "system", content: enhancedSystemPrompt },
-        { role: "user", content: query }
-      ],
+      messages: messages,
       temperature: 0.7,
-      max_tokens: 500
+      max_tokens: 800 // Increased to accommodate explanations
     });
     
     console.log('GPT fine-tuned response:', response.data);
     
     const responseText = response.data.choices[0].message.content;
+    const { sql, explanation } = extractSqlAndExplanation(responseText);
+    
     const executionTime = roundToTwoDecimals((Date.now() - startTime) / 1000); // Convert to seconds and round
     const tokensGenerated = response.data.usage ? response.data.usage.completion_tokens : Math.floor(responseText.length / 4);
     const tokensPerSecond = executionTime > 0 ? roundToTwoDecimals(tokensGenerated / executionTime) : 0;
     
     // Get real-time metrics from the evaluator API
-    const metrics = await evaluateSqlMetrics(responseText, undefined, 'medium', executionTime, true, 'GPT');
+    const metrics = await evaluateSqlMetrics(sql, undefined, 'medium', executionTime, true, 'GPT');
     
     return {
       provider: 'OPENAI_FINETUNED',
       model: MODEL_CONFIG.GPT_FINETUNED.name,
       prompt: query,
-      response: responseText,
+      response: sql,
+      explanation: explanation,
       executionTime: executionTime,
-      responseLength: responseText.length,
+      responseLength: sql.length,
       sqlQualityScore: metrics.sqlQualityScore,
       tokensGenerated: tokensGenerated,
       tokensPerSecond: tokensPerSecond,
@@ -708,20 +802,32 @@ export const queryGptFinetuned = async (query: string): Promise<ModelResponse> =
 };
 
 // Function to query the GPT-4o-mini base model
-export const queryGpt4oMiniBase = async (query: string): Promise<ModelResponse> => {
+export const queryGpt4oMiniBase = async (query: string, schema?: string): Promise<ModelResponse> => {
   const startTime = Date.now();
   
   try {
     console.log('Requesting GPT-4o-mini base model...');
     
+    // Prepare the messages array with or without schema
+    const messages = [
+      { role: "system", content: enhancedSystemPrompt }
+    ];
+    
+    // If schema is provided, include it in the user message
+    if (schema) {
+      messages.push({ 
+        role: "user", 
+        content: `Database Schema:\n${schema}\n\nQuery: ${query}` 
+      });
+    } else {
+      messages.push({ role: "user", content: query });
+    }
+    
     const response = await gpt4oMiniApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT4O_MINI_BASE.id,
-        messages: [
-          { role: "system", content: enhancedSystemPrompt },
-          { role: "user", content: query }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 800 // Increased to accommodate explanations
     });
     
     console.log('GPT-4o-mini base response:', response.data);
@@ -734,20 +840,23 @@ export const queryGpt4oMiniBase = async (query: string): Promise<ModelResponse> 
       responseText = JSON.stringify(response.data);
     }
     
+    const { sql, explanation } = extractSqlAndExplanation(responseText);
+    
     const executionTime = roundToTwoDecimals((Date.now() - startTime) / 1000); // Convert to seconds and round
     const tokensGenerated = response.data.usage ? response.data.usage.completion_tokens : Math.floor(responseText.length / 4);
     const tokensPerSecond = executionTime > 0 ? roundToTwoDecimals(tokensGenerated / executionTime) : 0;
     
     // Get real-time metrics from the evaluator API
-    const metrics = await evaluateSqlMetrics(responseText, undefined, 'medium', executionTime, false, 'GPT4O_MINI');
+    const metrics = await evaluateSqlMetrics(sql, undefined, 'medium', executionTime, false, 'GPT4O_MINI');
     
     return {
       provider: 'GPT4O_MINI',
       model: MODEL_CONFIG.GPT4O_MINI_BASE.name,
       prompt: query,
-      response: responseText,
+      response: sql,
+      explanation: explanation,
       executionTime: executionTime,
-      responseLength: responseText.length,
+      responseLength: sql.length,
       sqlQualityScore: metrics.sqlQualityScore,
       tokensGenerated: tokensGenerated,
       tokensPerSecond: tokensPerSecond,
@@ -768,20 +877,32 @@ export const queryGpt4oMiniBase = async (query: string): Promise<ModelResponse> 
 };
 
 // Function to query the fine-tuned GPT-4o-mini model
-export const queryGpt4oMiniFinetuned = async (query: string): Promise<ModelResponse> => {
+export const queryGpt4oMiniFinetuned = async (query: string, schema?: string): Promise<ModelResponse> => {
   const startTime = Date.now();
   
   try {
     console.log('Requesting GPT-4o-mini fine-tuned model...');
     
+    // Prepare the messages array with or without schema
+    const messages = [
+      { role: "system", content: enhancedSystemPrompt }
+    ];
+    
+    // If schema is provided, include it in the user message
+    if (schema) {
+      messages.push({ 
+        role: "user", 
+        content: `Database Schema:\n${schema}\n\nQuery: ${query}` 
+      });
+    } else {
+      messages.push({ role: "user", content: query });
+    }
+    
     const response = await gpt4oMiniApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT4O_MINI_FINETUNED.id,
-        messages: [
-          { role: "system", content: enhancedSystemPrompt },
-          { role: "user", content: query }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 800 // Increased to accommodate explanations
     });
     
     console.log('GPT-4o-mini fine-tuned response:', response.data);
@@ -794,20 +915,23 @@ export const queryGpt4oMiniFinetuned = async (query: string): Promise<ModelRespo
       responseText = JSON.stringify(response.data);
     }
     
+    const { sql, explanation } = extractSqlAndExplanation(responseText);
+    
     const executionTime = roundToTwoDecimals((Date.now() - startTime) / 1000); // Convert to seconds and round
     const tokensGenerated = response.data.usage ? response.data.usage.completion_tokens : Math.floor(responseText.length / 4);
     const tokensPerSecond = executionTime > 0 ? roundToTwoDecimals(tokensGenerated / executionTime) : 0;
     
     // Get real-time metrics from the evaluator API
-    const metrics = await evaluateSqlMetrics(responseText, undefined, 'medium', executionTime, true, 'GPT4O_MINI');
+    const metrics = await evaluateSqlMetrics(sql, undefined, 'medium', executionTime, true, 'GPT4O_MINI');
     
     return {
       provider: 'GPT4O_MINI_FINETUNED',
       model: MODEL_CONFIG.GPT4O_MINI_FINETUNED.name,
       prompt: query,
-      response: responseText,
+      response: sql,
+      explanation: explanation,
       executionTime: executionTime,
-      responseLength: responseText.length,
+      responseLength: sql.length,
       sqlQualityScore: metrics.sqlQualityScore,
       tokensGenerated: tokensGenerated,
       tokensPerSecond: tokensPerSecond,
@@ -828,7 +952,7 @@ export const queryGpt4oMiniFinetuned = async (query: string): Promise<ModelRespo
 };
 
 // New function to sequentially query models and ensure accurate execution times
-export const sequentialQueryModels = async (query: string): Promise<{
+export const sequentialQueryModels = async (query: string, schema?: string): Promise<{
   gptBase: ModelResponse;
   gptFinetuned: ModelResponse;
   gpt4oMiniBase: ModelResponse;
@@ -839,19 +963,19 @@ export const sequentialQueryModels = async (query: string): Promise<{
   // Query GPT 3.5 Base first
   console.log('Step 1: Querying GPT 3.5 Base model...');
   const gptBaseStartTime = Date.now();
-  const gptBaseResult = await queryGptBase(query);
+  const gptBaseResult = await queryGptBase(query, schema);
   const gptBaseEndTime = Date.now();
   
   // Query GPT 3.5 Fine-tuned next
   console.log('Step 2: Querying GPT 3.5 Fine-tuned model...');
   const gptFinetunedStartTime = Date.now();
-  const gptFinetunedResult = await queryGptFinetuned(query);
+  const gptFinetunedResult = await queryGptFinetuned(query, schema);
   const gptFinetunedEndTime = Date.now();
   
   // Query GPT-4o-mini Base next
   console.log('Step 3: Querying GPT-4o-mini Base model...');
   const gpt4oMiniBaseStartTime = Date.now();
-  const gpt4oMiniBaseResult = await queryGpt4oMiniBase(query).catch(error => {
+  const gpt4oMiniBaseResult = await queryGpt4oMiniBase(query, schema).catch(error => {
     console.error("Failed to query GPT-4o-mini base:", error);
     // Return a basic error response with all required properties
     return {
@@ -874,7 +998,7 @@ export const sequentialQueryModels = async (query: string): Promise<{
   // Query GPT-4o-mini Fine-tuned last
   console.log('Step 4: Querying GPT-4o-mini Fine-tuned model...');
   const gpt4oMiniFinetunedStartTime = Date.now();
-  const gpt4oMiniFinetunedResult = await queryGpt4oMiniFinetuned(query).catch(error => {
+  const gpt4oMiniFinetunedResult = await queryGpt4oMiniFinetuned(query, schema).catch(error => {
     console.error("Failed to query GPT-4o-mini fine-tuned:", error);
     // Return a basic error response with all required properties
     return {
@@ -929,15 +1053,15 @@ export const sequentialQueryModels = async (query: string): Promise<{
 };
 
 // Wrapper functions that use either real API or mock responses
-export const queryModel = async (modelType: string, query: string): Promise<ModelResponse> => {
+export const queryModel = async (modelType: string, query: string, schema?: string): Promise<ModelResponse> => {
   try {
     switch (modelType) {
       case MODEL_CONFIG.GPT_BASE.name:
-        return await queryGptBase(query);
+        return await queryGptBase(query, schema);
       case MODEL_CONFIG.GPT_FINETUNED.name:
-        return await queryGptFinetuned(query);
+        return await queryGptFinetuned(query, schema);
       case MODEL_CONFIG.GPT4O_MINI_BASE.name:
-        return await queryGpt4oMiniBase(query).catch(error => {
+        return await queryGpt4oMiniBase(query, schema).catch(error => {
           console.error("Failed to query GPT-4o-mini base:", error);
           // Return a basic error response with all required properties
           return {
@@ -956,7 +1080,7 @@ export const queryModel = async (modelType: string, query: string): Promise<Mode
           };
         });
       case MODEL_CONFIG.GPT4O_MINI_FINETUNED.name:
-        return await queryGpt4oMiniFinetuned(query).catch(error => {
+        return await queryGpt4oMiniFinetuned(query, schema).catch(error => {
           console.error("Failed to query GPT-4o-mini fine-tuned:", error);
           // Return a basic error response with all required properties
           return {

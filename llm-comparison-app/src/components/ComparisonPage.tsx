@@ -13,6 +13,8 @@ import './ComparisonPage.css';
 const ComparisonPage: React.FC = () => {
   const [query, setQuery] = useState<string>('');
   const [selectedSample, setSelectedSample] = useState<string>('');
+  const [schema, setSchema] = useState<string>('');
+  const [showSchemaInput, setShowSchemaInput] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [gptBaseResponse, setGptBaseResponse] = useState<ModelResponseType | undefined>(undefined);
   const [gptFineTunedResponse, setGptFineTunedResponse] = useState<ModelResponseType | undefined>(undefined);
@@ -45,6 +47,19 @@ const ComparisonPage: React.FC = () => {
     }
   };
 
+  // Handle schema input change
+  const handleSchemaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setSchema(e.target.value);
+  };
+
+  // Toggle schema input visibility
+  const toggleSchemaInput = () => {
+    setShowSchemaInput(!showSchemaInput);
+    if (!showSchemaInput && schema === '') {
+      setSchema(schemaTemplate);
+    }
+  };
+
   // Function to handle query submission
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -66,8 +81,9 @@ const ComparisonPage: React.FC = () => {
         setQueryHistory(prev => [query, ...prev].slice(0, 10)); // Keep last 10 queries
       }
 
-      // Use sequential model querying instead of parallel
-      const results = await sequentialQueryModels(query);
+      // Use sequential model querying with the provided schema (if any)
+      const schemaToUse = schema.trim() ? schema : undefined;
+      const results = await sequentialQueryModels(query, schemaToUse);
       
       setGptBaseResponse(results.gptBase);
       setGptFineTunedResponse(results.gptFinetuned);
@@ -86,6 +102,7 @@ const ComparisonPage: React.FC = () => {
   const handleClear = () => {
     setQuery('');
     setSelectedSample('');
+    setSchema('');
     setGptBaseResponse(undefined);
     setGptFineTunedResponse(undefined);
     setGpt4oMiniBaseResponse(undefined);
@@ -101,6 +118,22 @@ const ComparisonPage: React.FC = () => {
     "Show me the top 10 products by revenue",
     "List all orders from the last month"
   ];
+
+  // Sample schema template
+  const schemaTemplate = `CREATE TABLE users (
+  id INT PRIMARY KEY,
+  username VARCHAR(50),
+  email VARCHAR(100),
+  created_at TIMESTAMP
+);
+
+CREATE TABLE posts (
+  id INT PRIMARY KEY,
+  user_id INT,
+  title VARCHAR(200),
+  content TEXT,
+  created_at TIMESTAMP
+);`;
 
   return (
     <div className="comparison-container">
@@ -172,6 +205,30 @@ const ComparisonPage: React.FC = () => {
           className="query-textarea"
           rows={4}
         />
+
+        <div className="schema-toggle">
+          <button 
+            className={`toggle-button ${showSchemaInput ? 'active' : ''}`}
+            onClick={toggleSchemaInput}
+          >
+            {showSchemaInput ? 'Hide Database Schema' : 'Add Database Schema'}
+          </button>
+          <span className="schema-info-text">
+            {showSchemaInput ? 'Define your database structure to help the LLM generate better SQL' : 'Adding a schema helps the LLM understand your database structure'}
+          </span>
+        </div>
+
+        {showSchemaInput && (
+          <div className="schema-container">
+            <textarea
+              placeholder={schemaTemplate}
+              value={schema}
+              onChange={handleSchemaChange}
+              className="schema-textarea"
+              rows={10}
+            />
+          </div>
+        )}
 
         <div className="query-suggestions">
           {querySuggestions.map((suggestion, i) => (
@@ -248,12 +305,15 @@ const ComparisonPage: React.FC = () => {
       </div>
 
       {showVisualization && (
-        <ModelComparison
-          gptBase={gptBaseResponse}
-          gptFinetuned={gptFineTunedResponse}
-          gpt4oMiniBase={gpt4oMiniBaseResponse}
-          gpt4oMiniFinetuned={gpt4oMiniFineTunedResponse}
-        />
+        <div className="comparison-section">
+          <h2>Performance Comparison</h2>
+          <ModelComparison 
+            gptBase={gptBaseResponse} 
+            gptFinetuned={gptFineTunedResponse}
+            gpt4oMiniBase={gpt4oMiniBaseResponse}
+            gpt4oMiniFinetuned={gpt4oMiniFineTunedResponse}
+          />
+        </div>
       )}
     </div>
   );

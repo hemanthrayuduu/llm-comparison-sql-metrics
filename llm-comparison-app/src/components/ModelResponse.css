@@ -92,6 +92,52 @@
   display: inline-block;
 }
 
+.sql-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.explanation-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.explanation-button:hover {
+  background-color: #5a6268;
+}
+
+.explanation-button.active {
+  background-color: #28a745;
+}
+
+.sql-explanation {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+}
+
+.sql-explanation h4 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #333;
+  font-size: 1rem;
+}
+
+.sql-explanation p {
+  margin: 0;
+  color: #555;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
 .tokens-info {
   margin-top: 8px;
   display: flex;
