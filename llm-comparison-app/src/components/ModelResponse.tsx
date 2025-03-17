@@ -13,6 +13,7 @@ interface ModelResponseProps {
 const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading, error }) => {
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
+  const [showRawResponse, setShowRawResponse] = useState<boolean>(false);
   
   // Function to detect if the response is SQL
   const isSqlResponse = (response: string): boolean => {
@@ -119,14 +120,18 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                   )}
                 </div>
                 <div className="sql-actions">
-                  {data.explanation && (
-                    <button 
-                      className={`explanation-button ${showExplanation ? 'active' : ''}`}
-                      onClick={() => setShowExplanation(!showExplanation)}
-                    >
-                      {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
-                    </button>
-                  )}
+                  <button 
+                    className={`explanation-button ${showExplanation ? 'active' : ''}`}
+                    onClick={() => setShowExplanation(!showExplanation)}
+                  >
+                    {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
+                  </button>
+                  <button 
+                    className={`debug-button ${showRawResponse ? 'active' : ''}`}
+                    onClick={() => setShowRawResponse(!showRawResponse)}
+                  >
+                    {showRawResponse ? 'Hide Raw' : 'Show Raw'}
+                  </button>
                   <button 
                     className={`copy-button ${copySuccess ? 'success' : ''}`}
                     onClick={() => copyToClipboard(extractSql(data.response))}
@@ -143,10 +148,17 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                 {extractSql(data.response)}
               </SyntaxHighlighter>
               
-              {data.explanation && showExplanation && (
+              {showExplanation && (
                 <div className="sql-explanation">
                   <h4>Explanation</h4>
-                  <p>{data.explanation}</p>
+                  <p>{data.explanation || 'No explanation provided by the model.'}</p>
+                </div>
+              )}
+              
+              {showRawResponse && data.rawResponse && (
+                <div className="raw-response">
+                  <h4>Raw Model Response</h4>
+                  <pre>{data.rawResponse}</pre>
                 </div>
               )}
               
@@ -180,36 +192,6 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                         {data.validEfficiencyScore}/100
                       </span>
                       <span className="metric-description">Assesses query optimization and efficiency</span>
-                    </div>
-                  )}
-                  
-                  {data.exactMatchAccuracy !== undefined && (
-                    <div className="advanced-metric">
-                      <span className="metric-label">Exact Match:</span>
-                      <span className="metric-value" style={{ color: getQualityLabel(data.exactMatchAccuracy).color }}>
-                        {data.exactMatchAccuracy}/100
-                      </span>
-                      <span className="metric-description">Exact match with reference queries</span>
-                    </div>
-                  )}
-                  
-                  {data.logicalFormAccuracy !== undefined && (
-                    <div className="advanced-metric">
-                      <span className="metric-label">Logical Form:</span>
-                      <span className="metric-value" style={{ color: getQualityLabel(data.logicalFormAccuracy).color }}>
-                        {data.logicalFormAccuracy}/100
-                      </span>
-                      <span className="metric-description">Logical equivalence with reference queries</span>
-                    </div>
-                  )}
-                  
-                  {data.tableColumnAccuracy !== undefined && (
-                    <div className="advanced-metric">
-                      <span className="metric-label">Table/Column:</span>
-                      <span className="metric-value" style={{ color: getQualityLabel(data.tableColumnAccuracy).color }}>
-                        {data.tableColumnAccuracy}/100
-                      </span>
-                      <span className="metric-description">Accuracy of table and column selection</span>
                     </div>
                   )}
                 </div>
