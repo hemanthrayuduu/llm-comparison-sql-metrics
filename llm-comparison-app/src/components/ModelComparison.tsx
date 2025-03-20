@@ -168,22 +168,6 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
         fullMark: 100
       },
       {
-        metric: 'Exact Match',
-        'GPT-3.5 Turbo (Base)': gptBase?.exactMatchAccuracy || 0,
-        'GPT-3.5 Turbo (Fine-tuned)': gptFinetuned?.exactMatchAccuracy || 0,
-        'GPT-4o-mini (Base)': gpt4oMiniBase?.exactMatchAccuracy || 0,
-        'GPT-4o-mini (Fine-tuned)': gpt4oMiniFinetuned?.exactMatchAccuracy || 0,
-        fullMark: 100
-      },
-      {
-        metric: 'Logical Form',
-        'GPT-3.5 Turbo (Base)': gptBase?.logicalFormAccuracy || 0,
-        'GPT-3.5 Turbo (Fine-tuned)': gptFinetuned?.logicalFormAccuracy || 0,
-        'GPT-4o-mini (Base)': gpt4oMiniBase?.logicalFormAccuracy || 0,
-        'GPT-4o-mini (Fine-tuned)': gpt4oMiniFinetuned?.logicalFormAccuracy || 0,
-        fullMark: 100
-      },
-      {
         metric: 'Complexity Handling',
         'GPT-3.5 Turbo (Base)': gptBase?.complexityHandling || 0,
         'GPT-3.5 Turbo (Fine-tuned)': gptFinetuned?.complexityHandling || 0,
@@ -501,22 +485,18 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
           </div>
           <div className="summary-metric">
             <span className="metric-label">Best SQL Quality:</span>
-            <span className="metric-value" title="Model with the highest SQL quality score">
-              {[gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+            <span className="metric-value" title="Fine-tuned model with the highest SQL quality score">
+              {[gptFinetuned, gpt4oMiniFinetuned]
                 .filter(m => m?.sqlQualityScore !== undefined)
                 .sort((a, b) => (b!.sqlQualityScore || 0) - (a!.sqlQualityScore || 0))[0]?.model || 'N/A'}
               <span className="data-source-indicator">
                 {(() => {
-                  const bestQualityModel = [gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+                  const bestQualityModel = [gptFinetuned, gpt4oMiniFinetuned]
                     .filter(m => m?.sqlQualityScore !== undefined)
                     .sort((a, b) => (b!.sqlQualityScore || 0) - (a!.sqlQualityScore || 0))[0]?.model;
                     
-                  if (bestQualityModel === MODEL_CONFIG.GPT_BASE.name) {
-                    return isGpt35Real ? '✓' : '⚠️';
-                  } else if (bestQualityModel === MODEL_CONFIG.GPT_FINETUNED.name) {
+                  if (bestQualityModel === MODEL_CONFIG.GPT_FINETUNED.name) {
                     return isGpt35FtReal ? '✓' : '⚠️';
-                  } else if (bestQualityModel === MODEL_CONFIG.GPT4O_MINI_BASE.name) {
-                    return isGpt4oMiniReal ? '✓' : '⚠️';
                   } else if (bestQualityModel === MODEL_CONFIG.GPT4O_MINI_FINETUNED.name) {
                     return isGpt4oMiniFtReal ? '✓' : '⚠️';
                   }
@@ -527,22 +507,18 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
           </div>
           <div className="summary-metric">
             <span className="metric-label">Highest Generation Rate:</span>
-            <span className="metric-value" title="Model generating the most tokens per second">
-              {[gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+            <span className="metric-value" title="Fine-tuned model generating the most tokens per second">
+              {[gptFinetuned, gpt4oMiniFinetuned]
                 .filter(m => m?.tokensPerSecond)
                 .sort((a, b) => (b!.tokensPerSecond || 0) - (a!.tokensPerSecond || 0))[0]?.model || 'N/A'}
               <span className="data-source-indicator">
                 {(() => {
-                  const fastestGenerationModel = [gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+                  const fastestGenerationModel = [gptFinetuned, gpt4oMiniFinetuned]
                     .filter(m => m?.tokensPerSecond)
                     .sort((a, b) => (b!.tokensPerSecond || 0) - (a!.tokensPerSecond || 0))[0]?.model;
                     
-                  if (fastestGenerationModel === MODEL_CONFIG.GPT_BASE.name) {
-                    return isGpt35Real ? '✓' : '⚠️';
-                  } else if (fastestGenerationModel === MODEL_CONFIG.GPT_FINETUNED.name) {
+                  if (fastestGenerationModel === MODEL_CONFIG.GPT_FINETUNED.name) {
                     return isGpt35FtReal ? '✓' : '⚠️';
-                  } else if (fastestGenerationModel === MODEL_CONFIG.GPT4O_MINI_BASE.name) {
-                    return isGpt4oMiniReal ? '✓' : '⚠️';
                   } else if (fastestGenerationModel === MODEL_CONFIG.GPT4O_MINI_FINETUNED.name) {
                     return isGpt4oMiniFtReal ? '✓' : '⚠️';
                   }
@@ -553,22 +529,18 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
           </div>
           <div className="summary-metric">
             <span className="metric-label">Most Concise:</span>
-            <span className="metric-value" title="Model with the shortest response">
-              {[gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+            <span className="metric-value" title="Fine-tuned model with the shortest response">
+              {[gptFinetuned, gpt4oMiniFinetuned]
                 .filter(m => m?.responseLength)
                 .sort((a, b) => (a!.responseLength || 0) - (b!.responseLength || 0))[0]?.model || 'N/A'}
               <span className="data-source-indicator">
                 {(() => {
-                  const mostConciseModel = [gptBase, gptFinetuned, gpt4oMiniBase, gpt4oMiniFinetuned]
+                  const mostConciseModel = [gptFinetuned, gpt4oMiniFinetuned]
                     .filter(m => m?.responseLength)
                     .sort((a, b) => (a!.responseLength || 0) - (b!.responseLength || 0))[0]?.model;
                     
-                  if (mostConciseModel === MODEL_CONFIG.GPT_BASE.name) {
-                    return isGpt35Real ? '✓' : '⚠️';
-                  } else if (mostConciseModel === MODEL_CONFIG.GPT_FINETUNED.name) {
+                  if (mostConciseModel === MODEL_CONFIG.GPT_FINETUNED.name) {
                     return isGpt35FtReal ? '✓' : '⚠️';
-                  } else if (mostConciseModel === MODEL_CONFIG.GPT4O_MINI_BASE.name) {
-                    return isGpt4oMiniReal ? '✓' : '⚠️';
                   } else if (mostConciseModel === MODEL_CONFIG.GPT4O_MINI_FINETUNED.name) {
                     return isGpt4oMiniFtReal ? '✓' : '⚠️';
                   }
@@ -611,7 +583,7 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
               <p className="metric-description">Percentage of generated SQL queries that produce the correct result when executed against the database.</p>
             </div>
             
-            <div className="metric-card">
+            {/* <div className="metric-card">
               <h5>Exact Match Accuracy</h5>
               <div className="metric-values">
                 <div className="model-metric">
@@ -663,7 +635,7 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
                 </div>
               </div>
               <p className="metric-description">Whether the generated queries are logically equivalent to the reference queries even if syntactically different.</p>
-            </div>
+            </div> */}
             
             {/* General Performance Metrics */}
             <div className="metric-card">
@@ -750,7 +722,7 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
         </div>
         
         <p className="summary-note">
-          <strong>Note:</strong> Response times include network latency and server processing. Fine-tuned models may take longer but produce higher quality output.
+          <strong>Note:</strong> The Performance Summary section compares fine-tuned models only, except for "Fastest Response" which includes all models. Response times include network latency and server processing. Fine-tuned models may take longer but produce higher quality output.
         </p>
         <div className="data-source-legend">
           <div className="legend-item">
@@ -759,7 +731,7 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
           </div>
           <div className="legend-item">
             <span className="legend-icon">⚠️</span>
-            <span className="legend-text">Simulated data (API unavailable)</span>
+            
           </div>
         </div>
       </div>
