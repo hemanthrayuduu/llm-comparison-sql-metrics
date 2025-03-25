@@ -626,7 +626,7 @@ const analyzeTableColumnUsage = (sqlQuery: string, expectedSql: string | null = 
   const logicalFormScore = accuracy * 0.9; // Approximate
   
   // Ensure scores are between 0 and 100
-  return {
+    return {
     accuracy: Math.min(100, accuracy),
     exactMatchScore: Math.min(100, exactMatchScore),
     logicalFormScore: Math.min(100, logicalFormScore)
@@ -1186,7 +1186,7 @@ export const queryGpt4oMiniBase = async (query: string, schema?: string): Promis
     const response = await gpt4oMiniApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT4O_MINI_BASE.id,
       messages: messages,
-      temperature: 0.7,
+        temperature: 0.7,
       max_tokens: 800 // Increased to accommodate explanations
     });
     
@@ -1274,7 +1274,7 @@ export const queryGpt4oMiniFinetuned = async (query: string, schema?: string): P
     const response = await gpt4oMiniApi.post('/chat/completions', {
       model: MODEL_CONFIG.GPT4O_MINI_FINETUNED.id,
       messages: messages,
-      temperature: 0.7,
+        temperature: 0.7,
       max_tokens: 800 // Increased to accommodate explanations
     });
     
@@ -1339,21 +1339,21 @@ export const sequentialQueryModels = async (
     // Old interface: sequentialQueryModels(query, schema?)
     const schemaToUse = modelsOrSchema as string;
     console.log('Using backward compatibility mode for sequentialQueryModels');
-    
-    // Query GPT 3.5 Base first
-    console.log('Step 1: Querying GPT 3.5 Base model...');
+  
+  // Query GPT 3.5 Base first
+  console.log('Step 1: Querying GPT 3.5 Base model...');
     const gptBaseResult = await queryGptBase(prompt, schemaToUse);
-    
-    // Query GPT 3.5 Fine-tuned next
-    console.log('Step 2: Querying GPT 3.5 Fine-tuned model...');
+  
+  // Query GPT 3.5 Fine-tuned next
+  console.log('Step 2: Querying GPT 3.5 Fine-tuned model...');
     const gptFinetunedResult = await queryGptFinetuned(prompt, schemaToUse);
-    
-    // Query GPT-4o-mini Base next
-    console.log('Step 3: Querying GPT-4o-mini Base model...');
+  
+  // Query GPT-4o-mini Base next
+  console.log('Step 3: Querying GPT-4o-mini Base model...');
     const gpt4oMiniBaseResult = await queryGpt4oMiniBase(prompt, schemaToUse);
-    
-    // Query GPT-4o-mini Fine-tuned last
-    console.log('Step 4: Querying GPT-4o-mini Fine-tuned model...');
+  
+  // Query GPT-4o-mini Fine-tuned last
+  console.log('Step 4: Querying GPT-4o-mini Fine-tuned model...');
     const gpt4oMiniFinetunedResult = await queryGpt4oMiniFinetuned(prompt, schemaToUse);
     
     return {

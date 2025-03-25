@@ -7,5 +7,11 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: VITE_API_BASE_URL
+        value: "https://your-backend-api-url.com"
+      - key: VITE_OPENAI_API_KEY
+        sync: false  # This will be set manually in Render dashboard for security
+      - key: VITE_SQL_METRICS_EVALUATOR_API_URL
+        value: "https://your-metrics-evaluator-url.com"
     healthCheckPath: /
     autoDeploy: true 

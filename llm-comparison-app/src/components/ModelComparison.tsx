@@ -209,18 +209,8 @@ const ModelComparison: React.FC<ModelComparisonProps> = ({
   };
 
   // Format tooltip values
-  const formatTooltipValue = (value: number, name: string, props: any) => {
-    const metricName = props?.payload?.name;
-    if (metricName === 'Total Response Time (ms)') {
-      return `${value} ms`;
-    } else if (metricName === 'SQL Quality Score') {
-      return `${value}/100`;
-    } else if (metricName === 'Response Length (chars)') {
-      return `${value} chars`;
-    } else if (metricName === 'Generation Speed (tokens/sec)') {
-      return `${value} tokens/sec`;
-    }
-    return value;
+  const formatTooltipValue = (value: number, _props: any) => {
+    return `${value.toFixed(2)}`;
   };
 
   // Function to get model data status icon
