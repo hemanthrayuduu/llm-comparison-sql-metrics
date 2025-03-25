@@ -85,10 +85,12 @@ const ComparisonPage: React.FC = () => {
       const schemaToUse = schema.trim() ? schema : undefined;
       const results = await sequentialQueryModels(query, schemaToUse);
       
-      setGptBaseResponse(results.gptBase);
-      setGptFineTunedResponse(results.gptFinetuned);
-      setGpt4oMiniBaseResponse(results.gpt4oMiniBase);
-      setGpt4oMiniFineTunedResponse(results.gpt4oMiniFinetuned);
+      if ('gptBase' in results) {
+        setGptBaseResponse(results.gptBase);
+        setGptFineTunedResponse(results.gptFinetuned);
+        setGpt4oMiniBaseResponse(results.gpt4oMiniBase);
+        setGpt4oMiniFineTunedResponse(results.gpt4oMiniFinetuned);
+      }
       setShowVisualization(true);
     } catch (err) {
       console.error('General error:', err);
