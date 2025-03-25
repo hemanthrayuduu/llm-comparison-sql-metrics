@@ -2,6 +2,7 @@ services:
   - type: web
     name: llm-comparison-app
     env: docker
+    rootDirectory: llm-comparison-app
     buildCommand: docker build -t llm-comparison-app .
     startCommand: docker run -p $PORT:3000 llm-comparison-app
     envVars:
