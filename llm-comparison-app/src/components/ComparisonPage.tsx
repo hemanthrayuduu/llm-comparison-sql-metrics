@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import ModelResponse from './ModelResponse';
 import ModelComparison from './ModelComparison';
 import { 
-  queryModel, 
   sequentialQueryModels, 
   ModelResponse as ModelResponseType, 
   MODEL_CONFIG 
