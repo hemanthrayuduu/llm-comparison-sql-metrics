@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: llm-comparison-app
+    env: docker
+    buildCommand: docker build -t llm-comparison-app .
+    startCommand: docker run -p 3000:3000 llm-comparison-app
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /
+    autoDeploy: true 
