@@ -25,7 +25,7 @@ export interface ModelResponse {
 
 export interface QueryRequest {
   query: string;
-  schema?: string; // Added schema parameter
+  schema?: string;
 }
 
 // Define the SQL metrics evaluator API URL
@@ -208,7 +208,6 @@ export const sequentialQueryModels = async (
   _expectedSql?: string | null
 ): Promise<ModelResponse[] | { gptBase: ModelResponse; gptFinetuned: ModelResponse; gpt4oMiniBase: ModelResponse; gpt4oMiniFinetuned: ModelResponse }> => {
   if (typeof modelsOrSchema === 'string' || modelsOrSchema === undefined) {
-    const schemaToUse = modelsOrSchema as string;
     console.log('Using backward compatibility mode for sequentialQueryModels');
   
     console.log('Step 1: Querying GPT 3.5 Base model...');
@@ -305,7 +304,7 @@ export const sequentialQueryModels = async (
 };
 
 // Mock function to simulate model responses
-const mockModelResponse = async (modelName: string, prompt: string): Promise<string> => {
+const mockModelResponse = async (_modelName: string, prompt: string): Promise<string> => {
   await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
   return `SELECT * FROM users WHERE query = '${prompt}' LIMIT 10;`;
 };
@@ -418,10 +417,17 @@ const generateSqlExplanation = (sql: string): string => {
   return parts.join(' ');
 };
 
+// Export the functions we want to expose
+export const queryModel = sequentialQueryModels;
+export const queryGptBase = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT_BASE]);
+export const queryGptFinetuned = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT_FINETUNED]);
+export const queryGpt4oMiniBase = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4O_MINI_BASE]);
+export const queryGpt4oMiniFinetuned = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4O_MINI_FINETUNED]);
+
 export default {
   queryModel,
   queryGptBase,
   queryGptFinetuned,
   queryGpt4oMiniBase,
-  queryGpt4oMiniFinetuned,
+  queryGpt4oMiniFinetuned
 }; 
