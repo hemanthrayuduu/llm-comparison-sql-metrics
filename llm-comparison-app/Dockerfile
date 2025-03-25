@@ -1,4 +1,4 @@
-# Use Node.js as base image
+# Use Node.js LTS version
 FROM node:18-alpine
 
 # Set working directory
@@ -19,7 +19,7 @@ RUN npm run build
 # Install serve to run the application
 RUN npm install -g serve
 
-# Expose port 3000
+# Expose the port
 EXPOSE 3000
 
 # Start the application
