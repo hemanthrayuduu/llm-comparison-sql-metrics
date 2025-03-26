@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // Define the types for our API responses
 export interface ModelResponse {
   provider?: string;
@@ -26,6 +28,13 @@ export interface QueryRequest {
   schema?: string;
 }
 
+// API Keys - In a production app, these should be in environment variables
+const API_KEYS = {
+  OPENAI: import.meta.env.VITE_OPENAI_API_KEY || '',
+  OPENAI_FINETUNED: import.meta.env.VITE_OPENAI_API_KEY || '',
+  GPT4O_MINI: import.meta.env.VITE_OPENAI_API_KEY || '',
+};
+
 // Model configuration
 export const MODEL_CONFIG = {
   GPT_BASE: {
@@ -50,15 +59,55 @@ export const MODEL_CONFIG = {
   }
 };
 
+// Create axios instances for different API providers
+const openaiApi = axios.create({
+  baseURL: 'https://api.openai.com/v1',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEYS.OPENAI}`
+  }
+});
+
+const openaiFinetunedApi = axios.create({
+  baseURL: 'https://api.openai.com/v1',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEYS.OPENAI_FINETUNED}`
+  }
+});
+
+const gpt4oMiniApi = axios.create({
+  baseURL: 'https://api.openai.com/v1',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${API_KEYS.GPT4O_MINI}`
+  }
+});
+
 // Helper function to round numbers to 2 decimal places
 const roundToTwoDecimals = (num: number): number => {
   return Math.round((num + Number.EPSILON) * 100) / 100;
 };
 
-// Mock function to simulate model responses
-const mockModelResponse = async (_modelName: string, prompt: string): Promise<string> => {
-  await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 500));
-  return `SELECT * FROM users WHERE query = '${prompt}' LIMIT 10;`;
+// Function to make API calls to OpenAI
+const callOpenAI = async (api: typeof openaiApi, prompt: string): Promise<string> => {
+  const response = await api.post('/chat/completions', {
+    model: 'gpt-3.5-turbo',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an expert SQL assistant that translates natural language to SQL queries.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 500
+  });
+
+  return response.data.choices[0].message.content;
 };
 
 // Function to query models sequentially
@@ -72,16 +121,16 @@ export const sequentialQueryModels = async (
     console.log('Using backward compatibility mode for sequentialQueryModels');
   
     console.log('Step 1: Querying GPT 3.5 Base model...');
-    const gptBaseResult = await mockModelResponse(MODEL_CONFIG.GPT_BASE.name, prompt);
+    const gptBaseResult = await callOpenAI(openaiApi, prompt);
   
     console.log('Step 2: Querying GPT 3.5 Fine-tuned model...');
-    const gptFinetunedResult = await mockModelResponse(MODEL_CONFIG.GPT_FINETUNED.name, prompt);
+    const gptFinetunedResult = await callOpenAI(openaiFinetunedApi, prompt);
   
     console.log('Step 3: Querying GPT-4o-mini Base model...');
-    const gpt4oMiniBaseResult = await mockModelResponse(MODEL_CONFIG.GPT4O_MINI_BASE.name, prompt);
+    const gpt4oMiniBaseResult = await callOpenAI(gpt4oMiniApi, prompt);
   
     console.log('Step 4: Querying GPT-4o-mini Fine-tuned model...');
-    const gpt4oMiniFinetunedResult = await mockModelResponse(MODEL_CONFIG.GPT4O_MINI_FINETUNED.name, prompt);
+    const gpt4oMiniFinetunedResult = await callOpenAI(gpt4oMiniApi, prompt);
     
     const createResponse = (response: string, model: string, provider: string): ModelResponse => {
       const executionTime = Math.random() * 1000;
@@ -119,7 +168,15 @@ export const sequentialQueryModels = async (
   for (const model of models) {
     try {
       const startTime = Date.now();
-      const response = await mockModelResponse(model.name, prompt);
+      let response: string;
+
+      // Select the appropriate API based on the model
+      if (model.name.includes('GPT-3.5')) {
+        response = await callOpenAI(model.isFineTuned ? openaiFinetunedApi : openaiApi, prompt);
+      } else {
+        response = await callOpenAI(gpt4oMiniApi, prompt);
+      }
+
       const executionTime = Date.now() - startTime;
       const tokensGenerated = Math.floor(response.length / 4);
       const tokensPerSecond = tokensGenerated / (executionTime / 1000);
