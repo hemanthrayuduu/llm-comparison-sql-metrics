@@ -39,7 +39,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const API_KEYS = {
   OPENAI: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
   OPENAI_FINETUNED: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
-  GPT4O_MINI: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key', // Using the same key as OpenAI fine-tuned since both are OpenAI models
+  GPT4O_MINI: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
 };
 
 // Model configuration
