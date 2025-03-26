@@ -1,11 +1,56 @@
 export interface SampleQuery {
   id: string;
-  text: string;
+  name: string;
+  query: string;
+  schema?: string;
   expectedSql?: string;
-  description?: string;
 }
 
 export const sampleQueries: SampleQuery[] = [
+  {
+    id: 'sample1',
+    name: 'Find all users',
+    query: 'Find all users in the database',
+    schema: `
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  username VARCHAR(50),
+  email VARCHAR(100)
+);`,
+    expectedSql: 'SELECT * FROM users;'
+  },
+  {
+    id: 'sample2',
+    name: 'Count orders by status',
+    query: 'Show me the count of orders by status',
+    schema: `
+CREATE TABLE orders (
+  id INT PRIMARY KEY,
+  status VARCHAR(20),
+  created_at TIMESTAMP
+);`,
+    expectedSql: 'SELECT status, COUNT(*) as count FROM orders GROUP BY status;'
+  },
+  {
+    id: 'sample3',
+    name: 'Recent customer orders',
+    query: 'Find all orders from customers in the last month',
+    schema: `
+CREATE TABLE customers (
+  id INT PRIMARY KEY,
+  name VARCHAR(100),
+  email VARCHAR(100)
+);
+
+CREATE TABLE orders (
+  id INT PRIMARY KEY,
+  customer_id INT,
+  order_date TIMESTAMP,
+  total_amount DECIMAL(10,2),
+  FOREIGN KEY (customer_id) REFERENCES customers(id)
+);`,
+    expectedSql: 'SELECT c.name, o.* FROM customers c JOIN orders o ON c.id = o.customer_id WHERE o.order_date >= NOW() - INTERVAL \'1 month\';'
+  },
   {
     id: '1',
     text: 'Find all customers who made purchases in the last 30 days',

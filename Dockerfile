@@ -13,19 +13,14 @@ RUN npm install
 # Copy project files
 COPY llm-comparison-app/ .
 
-# Add build arguments
+# Set build argument for OpenAI API key
 ARG VITE_OPENAI_API_KEY
-ARG VITE_TOGETHER_API_KEY
 
-# Set environment variables for build time
+# Set environment variable for build time
 ENV VITE_OPENAI_API_KEY=${VITE_OPENAI_API_KEY}
-ENV VITE_TOGETHER_API_KEY=${VITE_TOGETHER_API_KEY}
-
-# Print environment status (excluding sensitive values)
-RUN echo "Building with environment variables configured: $(if [ -n "$VITE_OPENAI_API_KEY" ]; then echo "VITE_OPENAI_API_KEY is set"; else echo "VITE_OPENAI_API_KEY is NOT set"; fi)"
 
 # Build the app with explicit environment variable passing
-RUN VITE_OPENAI_API_KEY=${VITE_OPENAI_API_KEY} VITE_TOGETHER_API_KEY=${VITE_TOGETHER_API_KEY} npm run build || (echo "Build failed. Check if environment variables are properly set." && exit 1)
+RUN VITE_OPENAI_API_KEY=${VITE_OPENAI_API_KEY} npm run build || (echo "Build failed. Check if environment variables are properly set." && exit 1)
 
 # Install serve to run the application
 RUN npm install -g serve
@@ -37,5 +32,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Serve the app
+# Start the application
 CMD ["serve", "-s", "dist", "-l", "3000"] 
