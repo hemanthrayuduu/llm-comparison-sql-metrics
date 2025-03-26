@@ -30,15 +30,16 @@ export interface QueryRequest {
 
 // API Keys - In a production app, these should be in environment variables
 const API_KEYS = {
-  OPENAI: import.meta.env.VITE_OPENAI_API_KEY,
-  TOGETHER: import.meta.env.VITE_TOGETHER_API_KEY,
+  // @ts-ignore
+  OPENAI: __OPENAI_API_KEY__ || '',
+  // @ts-ignore
+  TOGETHER: __TOGETHER_API_KEY__ || '',
 };
 
 // Debug logging for environment variables (remove in production)
 console.log('Environment variables check:', {
   hasOpenAIKey: typeof API_KEYS.OPENAI === 'string' && API_KEYS.OPENAI.startsWith('sk-'),
-  hasTOGETHERKey: typeof API_KEYS.TOGETHER === 'string' && API_KEYS.TOGETHER.length > 0,
-  envVars: import.meta.env
+  hasTOGETHERKey: typeof API_KEYS.TOGETHER === 'string' && API_KEYS.TOGETHER.length > 0
 });
 
 if (!API_KEYS.OPENAI || typeof API_KEYS.OPENAI !== 'string' || !API_KEYS.OPENAI.startsWith('sk-')) {
