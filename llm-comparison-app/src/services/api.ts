@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 // Define the types for our API responses
 export interface ModelResponse {
   provider?: string;
@@ -27,13 +25,6 @@ export interface QueryRequest {
   query: string;
   schema?: string;
 }
-
-// API Keys - In a production app, these should be in environment variables
-const API_KEYS = {
-  OPENAI: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
-  OPENAI_FINETUNED: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
-  GPT4O_MINI: import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key',
-};
 
 // Model configuration
 export const MODEL_CONFIG = {
