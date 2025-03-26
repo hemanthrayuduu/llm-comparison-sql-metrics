@@ -30,16 +30,20 @@ export interface QueryRequest {
 
 // API Keys - In a production app, these should be in environment variables
 const API_KEYS = {
-  OPENAI: import.meta.env.VITE_OPENAI_API_KEY || '',
-  TOGETHER: import.meta.env.VITE_TOGETHER_API_KEY || '',
+  OPENAI: import.meta.env.VITE_OPENAI_API_KEY,
+  TOGETHER: import.meta.env.VITE_TOGETHER_API_KEY,
 };
 
 // Debug logging for environment variables (remove in production)
-console.log('Environment variables loaded:', {
-  hasOpenAIKey: !!API_KEYS.OPENAI,
-  hasTOGETHERKey: !!API_KEYS.TOGETHER,
-  openAIKeyLength: API_KEYS.OPENAI?.length || 0
+console.log('Environment variables check:', {
+  hasOpenAIKey: typeof API_KEYS.OPENAI === 'string' && API_KEYS.OPENAI.startsWith('sk-'),
+  hasTOGETHERKey: typeof API_KEYS.TOGETHER === 'string' && API_KEYS.TOGETHER.length > 0,
+  envVars: import.meta.env
 });
+
+if (!API_KEYS.OPENAI || typeof API_KEYS.OPENAI !== 'string' || !API_KEYS.OPENAI.startsWith('sk-')) {
+  console.error('OpenAI API key is missing or invalid. Please check your environment variables.');
+}
 
 // Model configuration
 export const MODEL_CONFIG = {
@@ -74,17 +78,19 @@ const openaiApi = axios.create({
   baseURL: 'https://api.openai.com/v1',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_KEYS.OPENAI}`
+    'Authorization': `Bearer ${API_KEYS.OPENAI || ''}`
   }
 });
 
 // Add request interceptor for debugging
 openaiApi.interceptors.request.use(request => {
   const authHeader = request.headers['Authorization'] as string | undefined;
-  console.log('OpenAI API Request:', {
+  console.log('OpenAI API Request Details:', {
     url: request.url,
     hasAuthHeader: !!authHeader,
-    authHeaderLength: authHeader?.length || 0
+    authHeaderPrefix: authHeader?.substring(0, 10),
+    method: request.method,
+    baseURL: request.baseURL
   });
   return request;
 });
@@ -106,7 +112,7 @@ const togetherApi = axios.create({
   baseURL: 'https://api.together.xyz',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_KEYS.TOGETHER}`
+    'Authorization': `Bearer ${API_KEYS.TOGETHER || ''}`
   }
 });
 
