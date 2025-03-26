@@ -4,7 +4,8 @@ import ModelComparison from './ModelComparison';
 import { 
   sequentialQueryModels, 
   ModelResponse as ModelResponseType, 
-  MODEL_CONFIG 
+  MODEL_CONFIG,
+  queryModel
 } from '../services/api';
 import { sampleQueries } from '../data/sampleQueries';
 import './ComparisonPage.css';
@@ -15,10 +16,7 @@ const ComparisonPage: React.FC = () => {
   const [schema, setSchema] = useState<string>('');
   const [showSchemaInput, setShowSchemaInput] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [gptBaseResponse, setGptBaseResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gptFineTunedResponse, setGptFineTunedResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gpt4oMiniBaseResponse, setGpt4oMiniBaseResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gpt4oMiniFineTunedResponse, setGpt4oMiniFineTunedResponse] = useState<ModelResponseType | undefined>(undefined);
+  const [responses, setResponses] = useState<ModelResponseType[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [isCustomQuery, setIsCustomQuery] = useState<boolean>(true);
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
@@ -62,38 +60,26 @@ const ComparisonPage: React.FC = () => {
   // Function to handle query submission
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query) return;
-    
     setIsLoading(true);
     setError(undefined);
-    setGptBaseResponse(undefined);
-    setGptFineTunedResponse(undefined);
-    setGpt4oMiniBaseResponse(undefined);
-    setGpt4oMiniFineTunedResponse(undefined);
-    setShowVisualization(false);
     
     try {
-      console.log('Submitting query:', query);
+      console.log('Querying models with prompt:', query);
+      const results = await queryModel(query);
       
-      // Add to query history if it's a new query
-      if (!queryHistory.includes(query)) {
-        setQueryHistory(prev => [query, ...prev].slice(0, 10)); // Keep last 10 queries
+      if (Array.isArray(results)) {
+        setResponses(results);
+      } else {
+        setResponses([
+          results.gptBase,
+          results.gptFinetuned,
+          results.gpt4Base,
+          results.gpt4Finetuned
+        ]);
       }
-
-      // Use sequential model querying with the provided schema (if any)
-      const schemaToUse = schema.trim() ? schema : undefined;
-      const results = await sequentialQueryModels(query, schemaToUse);
-      
-      if ('gptBase' in results) {
-        setGptBaseResponse(results.gptBase);
-        setGptFineTunedResponse(results.gptFinetuned);
-        setGpt4oMiniBaseResponse(results.gpt4oMiniBase);
-        setGpt4oMiniFineTunedResponse(results.gpt4oMiniFinetuned);
-      }
-      setShowVisualization(true);
-    } catch (err) {
-      console.error('General error:', err);
-      setError(`Error fetching responses: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      console.error('General error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred while querying the models');
     } finally {
       setIsLoading(false);
     }
@@ -104,10 +90,7 @@ const ComparisonPage: React.FC = () => {
     setQuery('');
     setSelectedSample('');
     setSchema('');
-    setGptBaseResponse(undefined);
-    setGptFineTunedResponse(undefined);
-    setGpt4oMiniBaseResponse(undefined);
-    setGpt4oMiniFineTunedResponse(undefined);
+    setResponses([]);
     setError(undefined);
     setIsCustomQuery(true);
     setShowVisualization(false);
@@ -268,51 +251,26 @@ CREATE TABLE posts (
       <h2>Model Responses</h2>
 
       <div className="responses-grid">
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT_BASE.name}</h3>
-          <ModelResponse 
-            data={gptBaseResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT_FINETUNED.name}</h3>
-          <ModelResponse 
-            data={gptFineTunedResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT4O_MINI_BASE.name}</h3>
-          <ModelResponse 
-            data={gpt4oMiniBaseResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT4O_MINI_FINETUNED.name}</h3>
-          <ModelResponse 
-            data={gpt4oMiniFineTunedResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
+        {responses.map((response, index) => (
+          <div className="response-item" key={index}>
+            <h3>{MODEL_CONFIG.GPT_BASE.name}</h3>
+            <ModelResponse 
+              data={response} 
+              isLoading={isLoading} 
+              error={error} 
+            />
+          </div>
+        ))}
       </div>
 
       {showVisualization && (
         <div className="comparison-section">
           <h2>Performance Comparison</h2>
           <ModelComparison 
-            gptBase={gptBaseResponse} 
-            gptFinetuned={gptFineTunedResponse}
-            gpt4oMiniBase={gpt4oMiniBaseResponse}
-            gpt4oMiniFinetuned={gpt4oMiniFineTunedResponse}
+            gptBase={responses[0]} 
+            gptFinetuned={responses[1]}
+            gpt4oMiniBase={responses[2]}
+            gpt4oMiniFinetuned={responses[3]}
           />
         </div>
       )}

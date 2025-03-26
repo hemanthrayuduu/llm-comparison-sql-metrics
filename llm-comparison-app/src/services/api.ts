@@ -30,14 +30,12 @@ export interface QueryRequest {
 
 // API Keys - In a production app, these should be in environment variables
 const API_KEYS = {
-  OPENAI: import.meta.env.VITE_OPENAI_API_KEY || '',
-  TOGETHER: import.meta.env.VITE_TOGETHER_API_KEY || ''
+  OPENAI: import.meta.env.VITE_OPENAI_API_KEY || ''
 };
 
 // Debug logging for environment variables (remove in production)
 console.log('Environment variables check:', {
-  hasOpenAIKey: typeof API_KEYS.OPENAI === 'string' && API_KEYS.OPENAI.length > 0,
-  hasTOGETHERKey: typeof API_KEYS.TOGETHER === 'string' && API_KEYS.TOGETHER.length > 0
+  hasOpenAIKey: typeof API_KEYS.OPENAI === 'string' && API_KEYS.OPENAI.length > 0
 });
 
 if (!API_KEYS.OPENAI || typeof API_KEYS.OPENAI !== 'string' || !API_KEYS.OPENAI.startsWith('sk-')) {
@@ -58,21 +56,21 @@ export const MODEL_CONFIG = {
     isFineTuned: true,
     model: 'gpt-3.5-turbo-0125'
   },
-  GPT4O_MINI_BASE: {
-    name: 'GPT-4o-mini (Base)',
-    provider: 'Together',
+  GPT4_BASE: {
+    name: 'GPT-4 Turbo (Base)',
+    provider: 'OpenAI',
     isFineTuned: false,
-    model: 'togethercomputer/gpt4o-mini'
+    model: 'gpt-4-turbo-preview'
   },
-  GPT4O_MINI_FINETUNED: {
-    name: 'GPT-4o-mini (Fine-tuned)',
-    provider: 'Together',
+  GPT4_FINETUNED: {
+    name: 'GPT-4 Turbo (Fine-tuned)',
+    provider: 'OpenAI',
     isFineTuned: true,
-    model: 'togethercomputer/gpt4o-mini'
+    model: 'gpt-4-turbo-preview'
   }
 };
 
-// Create axios instances for different API providers
+// Create axios instance for OpenAI
 const openaiApi = axios.create({
   baseURL: 'https://api.openai.com/v1',
   headers: {
@@ -107,14 +105,6 @@ openaiApi.interceptors.response.use(
   }
 );
 
-const togetherApi = axios.create({
-  baseURL: 'https://api.together.xyz',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_KEYS.TOGETHER || ''}`
-  }
-});
-
 // Helper function to round numbers to 2 decimal places
 const roundToTwoDecimals = (num: number): number => {
   return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -133,25 +123,12 @@ const callOpenAI = async (prompt: string, model: string): Promise<string> => {
         role: 'user',
         content: prompt
       }
-      ],
-      temperature: 0.7,
-      max_tokens: 500
-    });
-    
-  return response.data.choices[0].message.content;
-};
-
-// Function to make API calls to Together AI
-const callTogether = async (prompt: string, model: string): Promise<string> => {
-  const response = await togetherApi.post('/inference', {
-    model: model,
-    prompt: `You are an expert SQL assistant that translates natural language to SQL queries.\n\nUser: ${prompt}\nAssistant:`,
-      temperature: 0.7,
-    max_tokens: 500,
-    stop: ["\nUser:", "\nHuman:"]
+    ],
+    temperature: 0.7,
+    max_tokens: 500
   });
 
-  return response.data.output.choices[0].text;
+  return response.data.choices[0].message.content;
 };
 
 // Function to query models sequentially
@@ -160,7 +137,7 @@ export const sequentialQueryModels = async (
   modelsOrSchema?: ModelConfig[] | string,
   _schema?: string | null,
   _expectedSql?: string | null
-): Promise<ModelResponse[] | { gptBase: ModelResponse; gptFinetuned: ModelResponse; gpt4oMiniBase: ModelResponse; gpt4oMiniFinetuned: ModelResponse }> => {
+): Promise<ModelResponse[] | { gptBase: ModelResponse; gptFinetuned: ModelResponse; gpt4Base: ModelResponse; gpt4Finetuned: ModelResponse }> => {
   if (typeof modelsOrSchema === 'string' || modelsOrSchema === undefined) {
     console.log('Using backward compatibility mode for sequentialQueryModels');
   
@@ -170,18 +147,18 @@ export const sequentialQueryModels = async (
     console.log('Step 2: Querying GPT 3.5 Fine-tuned model...');
     const gptFinetunedResult = await callOpenAI(prompt, MODEL_CONFIG.GPT_FINETUNED.model);
   
-    console.log('Step 3: Querying GPT-4o-mini Base model...');
-    const gpt4oMiniBaseResult = await callTogether(prompt, MODEL_CONFIG.GPT4O_MINI_BASE.model);
+    console.log('Step 3: Querying GPT-4 Base model...');
+    const gpt4BaseResult = await callOpenAI(prompt, MODEL_CONFIG.GPT4_BASE.model);
   
-    console.log('Step 4: Querying GPT-4o-mini Fine-tuned model...');
-    const gpt4oMiniFinetunedResult = await callTogether(prompt, MODEL_CONFIG.GPT4O_MINI_FINETUNED.model);
+    console.log('Step 4: Querying GPT-4 Fine-tuned model...');
+    const gpt4FinetunedResult = await callOpenAI(prompt, MODEL_CONFIG.GPT4_FINETUNED.model);
     
     const createResponse = (response: string, model: string, provider: string): ModelResponse => {
       const executionTime = Math.random() * 1000;
       const tokensGenerated = Math.floor(response.length / 4);
       const tokensPerSecond = tokensGenerated / (executionTime / 1000);
-    
-    return {
+      
+      return {
         provider,
         model,
         prompt,
@@ -201,8 +178,8 @@ export const sequentialQueryModels = async (
     return {
       gptBase: createResponse(gptBaseResult, MODEL_CONFIG.GPT_BASE.name, MODEL_CONFIG.GPT_BASE.provider),
       gptFinetuned: createResponse(gptFinetunedResult, MODEL_CONFIG.GPT_FINETUNED.name, MODEL_CONFIG.GPT_FINETUNED.provider),
-      gpt4oMiniBase: createResponse(gpt4oMiniBaseResult, MODEL_CONFIG.GPT4O_MINI_BASE.name, MODEL_CONFIG.GPT4O_MINI_BASE.provider),
-      gpt4oMiniFinetuned: createResponse(gpt4oMiniFinetunedResult, MODEL_CONFIG.GPT4O_MINI_FINETUNED.name, MODEL_CONFIG.GPT4O_MINI_FINETUNED.provider)
+      gpt4Base: createResponse(gpt4BaseResult, MODEL_CONFIG.GPT4_BASE.name, MODEL_CONFIG.GPT4_BASE.provider),
+      gpt4Finetuned: createResponse(gpt4FinetunedResult, MODEL_CONFIG.GPT4_FINETUNED.name, MODEL_CONFIG.GPT4_FINETUNED.provider)
     };
   }
 
@@ -212,15 +189,7 @@ export const sequentialQueryModels = async (
   for (const model of models) {
     try {
       const startTime = Date.now();
-      let response: string;
-
-      // Select the appropriate API based on the model
-      if (model.name.includes('GPT-3.5')) {
-        response = await callOpenAI(prompt, model.model);
-      } else {
-        response = await callTogether(prompt, model.model);
-      }
-
+      const response = await callOpenAI(prompt, model.model);
       const executionTime = Date.now() - startTime;
       const tokensGenerated = Math.floor(response.length / 4);
       const tokensPerSecond = tokensGenerated / (executionTime / 1000);
@@ -242,17 +211,17 @@ export const sequentialQueryModels = async (
       };
       
       responses.push(modelResponse);
-  } catch (error) {
+    } catch (error) {
       const errorResponse: ModelResponse = {
         provider: model.provider,
         model: model.name,
         prompt,
-      response: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      executionTime: 0,
-      responseLength: 0,
-      sqlQualityScore: 0,
-      executionAccuracy: 0,
-      exactMathAccuracy: 0,
+        response: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        executionTime: 0,
+        responseLength: 0,
+        sqlQualityScore: 0,
+        executionAccuracy: 0,
+        exactMathAccuracy: 0,
         validEfficiencyScore: 0,
         complexityEstimate: 'N/A',
         tokensGenerated: 0,
@@ -277,13 +246,13 @@ interface ModelConfig {
 export const queryModel = sequentialQueryModels;
 export const queryGptBase = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT_BASE]);
 export const queryGptFinetuned = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT_FINETUNED]);
-export const queryGpt4oMiniBase = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4O_MINI_BASE]);
-export const queryGpt4oMiniFinetuned = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4O_MINI_FINETUNED]);
+export const queryGpt4Base = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4_BASE]);
+export const queryGpt4Finetuned = (prompt: string) => sequentialQueryModels(prompt, [MODEL_CONFIG.GPT4_FINETUNED]);
 
 export default {
   queryModel,
   queryGptBase,
   queryGptFinetuned,
-  queryGpt4oMiniBase,
-  queryGpt4oMiniFinetuned
+  queryGpt4Base,
+  queryGpt4Finetuned
 }; 
