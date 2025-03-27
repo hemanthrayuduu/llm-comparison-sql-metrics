@@ -30,10 +30,11 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
       console.log('Querying models with prompt:', query);
       console.log('Using schema:', schema);
       
-      // Create a combined prompt with the schema if provided
+      // Log the combined prompt but we're using mock data for now
       const combinedPrompt = schema 
         ? `Given the following database schema:\n\n${schema}\n\n${query}`
         : query;
+      console.log('Combined prompt (for real API):', combinedPrompt);
       
       // Mock response for demonstration since getSQLResponses doesn't exist
       const mockResults = {
