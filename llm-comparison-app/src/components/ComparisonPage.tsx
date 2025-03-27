@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
-import { ModelResponse as ModelResponseType } from '../services/api';
-import { queryModel } from '../services/api';
-import { MODEL_CONFIG } from '../services/api';
-import ModelResponse from './ModelResponse';
+import React, { useState, useEffect } from 'react';
+import { getSQLResponses, ModelResponse } from '../services/api';
 import ModelComparison from './ModelComparison';
-import { sampleQueries } from '../data/sampleQueries';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import './ComparisonPage.css';
+import { getRandomQuestion } from '../utils/questions';
+import QueryForm from './QueryForm';
+import { debounce } from 'lodash';
+import { sampleQueries } from '../data/sampleQueries';
 
 interface ComparisonPageProps {
   // Add any props if needed
@@ -19,7 +17,7 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
   const [schema, setSchema] = useState<string>('');
   const [showSchemaInput, setShowSchemaInput] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [responses, setResponses] = useState<ModelResponseType[]>([]);
+  const [responses, setResponses] = useState<ModelResponse[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [showVisualization, setShowVisualization] = useState<boolean>(false);
   
@@ -37,7 +35,7 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
         ? `Given the following database schema:\n\n${schema}\n\n${query}`
         : query;
       
-      const results = await queryModel(combinedPrompt);
+      const results = await getSQLResponses(combinedPrompt);
       
       if (Array.isArray(results)) {
         setResponses(results);

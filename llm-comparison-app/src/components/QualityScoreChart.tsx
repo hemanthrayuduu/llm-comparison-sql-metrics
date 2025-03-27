@@ -194,7 +194,7 @@ const QualityScoreChart: React.FC<QualityScoreChartProps> = ({
             name="gptBase" 
             radius={[4, 4, 0, 0]}
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell 
                 key={`cell-gptBase-${index}`} 
                 fill={colors.gptBase} 
@@ -207,7 +207,7 @@ const QualityScoreChart: React.FC<QualityScoreChartProps> = ({
             name="gptFinetuned" 
             radius={[4, 4, 0, 0]}
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell 
                 key={`cell-gptFinetuned-${index}`} 
                 fill={colors.gptFinetuned} 
@@ -220,7 +220,7 @@ const QualityScoreChart: React.FC<QualityScoreChartProps> = ({
             name="gpt4Base" 
             radius={[4, 4, 0, 0]}
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell 
                 key={`cell-gpt4Base-${index}`} 
                 fill={colors.gpt4Base} 
@@ -233,7 +233,7 @@ const QualityScoreChart: React.FC<QualityScoreChartProps> = ({
             name="gpt4Finetuned" 
             radius={[4, 4, 0, 0]}
           >
-            {data.map((entry, index) => (
+            {data.map((_, index) => (
               <Cell 
                 key={`cell-gpt4Finetuned-${index}`} 
                 fill={colors.gpt4Finetuned} 
