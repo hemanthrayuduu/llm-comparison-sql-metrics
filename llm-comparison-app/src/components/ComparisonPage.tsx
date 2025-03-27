@@ -1,318 +1,288 @@
-import React, { useState, useEffect } from 'react';
-import ModelResponse from './ModelResponse';
+import React, { useState } from 'react';
+import { ModelResponse as ModelResponseType, sequentialQueryModels } from '../services/api';
 import ModelComparison from './ModelComparison';
-import { 
-  queryModel, 
-  sequentialQueryModels, 
-  ModelResponse as ModelResponseType, 
-  MODEL_CONFIG 
-} from '../services/api';
-import { sampleQueries } from '../data/sampleQueries';
 import './ComparisonPage.css';
+import { sampleQueries } from '../data/sampleQueries';
 
-const ComparisonPage: React.FC = () => {
+// Import the ModelResponse component
+import ModelResponse from './ModelResponse';
+
+interface ComparisonPageProps {
+  // Add any props if needed
+}
+
+const ComparisonPage: React.FC<ComparisonPageProps> = () => {
   const [query, setQuery] = useState<string>('');
   const [selectedSample, setSelectedSample] = useState<string>('');
   const [schema, setSchema] = useState<string>('');
-  const [showSchemaInput, setShowSchemaInput] = useState<boolean>(false);
+  const [showSchemaInput, setShowSchemaInput] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [gptBaseResponse, setGptBaseResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gptFineTunedResponse, setGptFineTunedResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gpt4oMiniBaseResponse, setGpt4oMiniBaseResponse] = useState<ModelResponseType | undefined>(undefined);
-  const [gpt4oMiniFineTunedResponse, setGpt4oMiniFineTunedResponse] = useState<ModelResponseType | undefined>(undefined);
+  const [responses, setResponses] = useState<ModelResponseType[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
-  const [isCustomQuery, setIsCustomQuery] = useState<boolean>(true);
-  const [queryHistory, setQueryHistory] = useState<string[]>([]);
   const [showVisualization, setShowVisualization] = useState<boolean>(false);
-
-  // Handle sample query selection
-  useEffect(() => {
-    if (selectedSample) {
-      const sample = sampleQueries.find(q => q.id === selectedSample);
-      if (sample) {
-        setQuery(sample.text);
-        setIsCustomQuery(false);
-      }
-    }
-  }, [selectedSample]);
-
-  // Handle query input change
-  const handleQueryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setQuery(e.target.value);
-    setIsCustomQuery(true);
-    
-    // Clear sample selection when user types their own query
-    if (selectedSample && e.target.value !== sampleQueries.find(q => q.id === selectedSample)?.text) {
-      setSelectedSample('');
-    }
-  };
-
-  // Handle schema input change
-  const handleSchemaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setSchema(e.target.value);
-  };
-
-  // Toggle schema input visibility
-  const toggleSchemaInput = () => {
-    setShowSchemaInput(!showSchemaInput);
-    if (!showSchemaInput && schema === '') {
-      setSchema(schemaTemplate);
-    }
-  };
-
-  // Function to handle query submission
+  
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!query) return;
-    
     setIsLoading(true);
     setError(undefined);
-    setGptBaseResponse(undefined);
-    setGptFineTunedResponse(undefined);
-    setGpt4oMiniBaseResponse(undefined);
-    setGpt4oMiniFineTunedResponse(undefined);
-    setShowVisualization(false);
     
     try {
-      console.log('Submitting query:', query);
+      console.log('Querying models with prompt:', query);
+      console.log('Using schema:', schema);
       
-      // Add to query history if it's a new query
-      if (!queryHistory.includes(query)) {
-        setQueryHistory(prev => [query, ...prev].slice(0, 10)); // Keep last 10 queries
+      // Create a combined prompt with the schema if provided
+      const combinedPrompt = schema 
+        ? `Given the following database schema:\n\n${schema}\n\n${query}`
+        : query;
+      
+      // Call the API with the combined prompt
+      const results = await sequentialQueryModels(combinedPrompt);
+      
+      if (Array.isArray(results)) {
+        setResponses(results);
+      } else {
+        setResponses([
+          results.gptBase,
+          results.gptFinetuned,
+          results.gpt4Base,
+          results.gpt4Finetuned
+        ]);
       }
-
-      // Use sequential model querying with the provided schema (if any)
-      const schemaToUse = schema.trim() ? schema : undefined;
-      const results = await sequentialQueryModels(query, schemaToUse);
-      
-      setGptBaseResponse(results.gptBase);
-      setGptFineTunedResponse(results.gptFinetuned);
-      setGpt4oMiniBaseResponse(results.gpt4oMiniBase);
-      setGpt4oMiniFineTunedResponse(results.gpt4oMiniFinetuned);
       setShowVisualization(true);
-    } catch (err) {
-      console.error('General error:', err);
-      setError(`Error fetching responses: ${err instanceof Error ? err.message : String(err)}`);
+    } catch (error) {
+      console.error('General error:', error);
+      setError(error instanceof Error ? error.message : 'An error occurred while querying the models');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Function to clear all responses and query
-  const handleClear = () => {
+  const handleReset = () => {
     setQuery('');
     setSelectedSample('');
     setSchema('');
-    setGptBaseResponse(undefined);
-    setGptFineTunedResponse(undefined);
-    setGpt4oMiniBaseResponse(undefined);
-    setGpt4oMiniFineTunedResponse(undefined);
+    setResponses([]);
     setError(undefined);
-    setIsCustomQuery(true);
     setShowVisualization(false);
   };
 
-  // Sample query suggestions
-  const querySuggestions = [
-    "Find all customers who spent more than $1000",
-    "Show me the top 10 products by revenue",
-    "List all orders from the last month"
-  ];
+  const handleSampleSelect = (sample: string) => {
+    if (sample) {
+      const selectedQuery = sampleQueries.find(q => q.id === sample);
+      if (selectedQuery) {
+        setQuery(selectedQuery.query);
+        setSchema(selectedQuery.schema || '');
+      }
+    }
+    setSelectedSample(sample);
+  };
 
-  // Sample schema template
-  const schemaTemplate = `CREATE TABLE users (
-  id INT PRIMARY KEY,
-  username VARCHAR(50),
-  email VARCHAR(100),
-  created_at TIMESTAMP
-);
+  // Helper function to format numbers (only show decimals if needed)
+  const formatNumber = (value: number): string => {
+    if (Math.floor(value) === value) {
+      return value.toString(); // Show as integer if it's a whole number
+    }
+    return value.toFixed(2); // Round to 2 decimal places otherwise
+  };
 
-CREATE TABLE posts (
-  id INT PRIMARY KEY,
-  user_id INT,
-  title VARCHAR(200),
-  content TEXT,
-  created_at TIMESTAMP
-);`;
+  // Function to determine the best performing model
+  const getBestModel = () => {
+    if (!responses.length) return null;
+    
+    let bestScore = -1;
+    let bestIndex = -1;
+    
+    responses.forEach((response, index) => {
+      if (response.sqlQualityScore && response.sqlQualityScore > bestScore) {
+        bestScore = response.sqlQualityScore;
+        bestIndex = index;
+      }
+    });
+    
+    if (bestIndex === -1) return null;
+    
+    const modelNames = ['GPT-3.5 Turbo', 'GPT-3.5 Turbo (Fine-tuned)', 'GPT-4o Mini', 'GPT-4o Mini (Fine-tuned)'];
+    
+    return {
+      name: responses[bestIndex].model || modelNames[bestIndex],
+      score: bestScore,
+      index: bestIndex
+    };
+  };
 
   return (
-    <div className="comparison-container">
-      <div className="header">
-        <h1>LLM Comparison: Text-to-SQL</h1>
-        <p>Compare GPT-3.5 Turbo and GPT-4o-mini models before and after fine-tuning</p>
+    <div className="comparison-page">
+      <div className="page-header">
+        <h1>Text-to-SQL Model Comparison Tool</h1>
+        <p>Compare SQL generation capabilities across different Large language models</p>
       </div>
 
-      <div className="query-section">
-        <div className="query-controls">
-          <div className="select-container">
-            <select 
-              value={selectedSample}
-              onChange={(e) => setSelectedSample(e.target.value)}
-              className="sample-select"
-            >
-              <option value="">Select a sample query</option>
-              {sampleQueries.map((sample) => (
-                <option key={sample.id} value={sample.id}>
-                  {sample.text.length > 60 ? `${sample.text.substring(0, 60)}...` : sample.text}
-                </option>
-              ))}
-            </select>
+      <div className="input-section">
+        <h2>Query Configuration</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="input-section-grid">
+            <div className="input-card">
+              <div className="input-card-header">
+                <span className="input-card-title">Natural Language Query</span>
+                <span className="input-card-subtitle">Enter your query in plain English</span>
+              </div>
+              <textarea
+                className="input-textarea"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="e.g., Find all customers who placed orders in the last month"
+                required
+                aria-label="SQL query in natural language"
+              />
+            </div>
             
-            {queryHistory.length > 0 && (
+            <div className="input-card">
+              <div className="input-card-header">
+                <span className="input-card-title">Sample Queries</span>
+                <span className="input-card-subtitle">Select from pre-defined examples</span>
+              </div>
               <select 
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setQuery(e.target.value);
-                    setIsCustomQuery(true);
-                    setSelectedSample('');
-                  }
-                }}
-                className="history-select"
+                className="sample-select"
+                value={selectedSample}
+                onChange={(e) => handleSampleSelect(e.target.value)}
+                aria-label="Sample query selection"
               >
-                <option value="" disabled>Recent queries</option>
-                {queryHistory.map((q, i) => (
-                  <option key={i} value={q}>
-                    {q.length > 60 ? `${q.substring(0, 60)}...` : q}
+                <option value="">Select a sample query...</option>
+                {sampleQueries.map(sample => (
+                  <option key={sample.id} value={sample.id}>
+                    {sample.name}
                   </option>
                 ))}
               </select>
-            )}
+              
+              {selectedSample && (
+                <div className="selected-sample-info">
+                  <p>{sampleQueries.find(s => s.id === selectedSample)?.query}</p>
+                </div>
+              )}
+            </div>
           </div>
           
-          <div className="button-group">
+          <div className="toggle-container">
+            <span className="toggle-label">Show Schema Editor</span>
+            <label className="toggle-switch">
+              <input 
+                type="checkbox" 
+                checked={showSchemaInput}
+                onChange={() => setShowSchemaInput(!showSchemaInput)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+          
+          {showSchemaInput && (
+            <div className="input-card schema-card">
+              <div className="input-card-header">
+                <span className="input-card-title">Database Schema</span>
+                <span className="input-card-subtitle">Define your database structure using SQL CREATE TABLE statements</span>
+              </div>
+              <textarea
+                className="input-textarea schema-textarea"
+                value={schema}
+                onChange={(e) => setSchema(e.target.value)}
+                placeholder="-- Enter your schema here
+-- Example:
+CREATE TABLE users (
+  id INT PRIMARY KEY,
+  username VARCHAR(50),
+  email VARCHAR(100)
+);"
+                aria-label="Database schema"
+                rows={8}
+              />
+            </div>
+          )}
+          
+          <div className="query-actions">
             <button 
-              className="primary-button" 
-              onClick={handleSubmit} 
-              disabled={isLoading || !query.trim()}
-            >
-              {isLoading ? 'Loading...' : 'Submit'}
-            </button>
-            <button 
-              className="secondary-button" 
-              onClick={handleClear} 
+              type="button" 
+              className="btn btn-secondary"
+              onClick={handleReset}
               disabled={isLoading}
+              aria-label="Reset form"
             >
-              Clear
+              Reset
             </button>
-          </div>
-        </div>
-
-        <textarea
-          placeholder="Enter your query here or select a sample query above..."
-          value={query}
-          onChange={handleQueryChange}
-          className="query-textarea"
-          rows={4}
-        />
-
-        <div className="schema-toggle">
-          <button 
-            className={`toggle-button ${showSchemaInput ? 'active' : ''}`}
-            onClick={toggleSchemaInput}
-          >
-            {showSchemaInput ? 'Hide Database Schema' : 'Add Database Schema'}
-          </button>
-          <span className="schema-info-text">
-            {showSchemaInput ? 'Define your database structure to help the LLM generate better SQL' : 'Adding a schema helps the LLM understand your database structure'}
-          </span>
-        </div>
-
-        {showSchemaInput && (
-          <div className="schema-container">
-            <textarea
-              placeholder={schemaTemplate}
-              value={schema}
-              onChange={handleSchemaChange}
-              className="schema-textarea"
-              rows={10}
-            />
-          </div>
-        )}
-
-        <div className="query-suggestions">
-          {querySuggestions.map((suggestion, i) => (
             <button 
-              key={i} 
-              className="suggestion-chip"
-              onClick={() => {
-                setQuery(suggestion);
-                setIsCustomQuery(true);
-                setSelectedSample('');
-              }}
+              type="submit" 
+              className={`btn btn-primary ${isLoading ? 'btn-loading' : ''}`}
+              disabled={isLoading || !query.trim()}
+              aria-label="Compare models"
             >
-              {suggestion}
+              {isLoading ? 'Processing...' : 'Compare Models'}
             </button>
-          ))}
-        </div>
-
-        {selectedSample && !isCustomQuery && (
-          <div className="expected-sql">
-            <p><strong>Expected SQL:</strong></p>
-            <pre>
-              {sampleQueries.find(q => q.id === selectedSample)?.expectedSql || 'No expected SQL provided'}
-            </pre>
           </div>
-        )}
-        
-        {isCustomQuery && query.trim() && (
-          <div className="query-hint">
-            <p><strong>Custom Query:</strong> Your query will be sent to all models to generate SQL.</p>
-          </div>
-        )}
+        </form>
       </div>
 
-      <div className="divider"></div>
+      {responses.length > 0 && (
+        <div className="results-container">
+          <div className="results-section">
+            <h2>Model Responses</h2>
+            <div className="results-grid">
+              {responses.map((response, index) => {
+                // Get model name from the response or use a default name
+                const modelName = response.model || (
+                  index === 0 ? 'GPT-3.5 Turbo (Base)' :
+                  index === 1 ? 'GPT-3.5 Turbo (Fine-tuned)' :
+                  index === 2 ? 'GPT-4o Mini (Base)' :
+                  'GPT-4o Mini (Fine-tuned)'
+                );
+                
+                // Determine if this is a fine-tuned model
+                const isFineTuned = modelName.toLowerCase().includes('fine-tuned');
+                
+                return (
+                  <div className="result-card" key={index}>
+                    <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-color)' }}>
+                      <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+                        {modelName.replace(' (Base)', '').replace(' (Fine-tuned)', '')}
+                      </span>
+                      <span className={`model-tag ${isFineTuned ? 'tag-finetuned' : 'tag-base'}`}>
+                        {isFineTuned ? 'Fine-tuned' : 'Base'}
+                      </span>
+                    </div>
+                    <ModelResponse 
+                      data={response} 
+                      isLoading={isLoading} 
+                      error={error} 
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      <h2>Model Responses</h2>
-
-      <div className="responses-grid">
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT_BASE.name}</h3>
-          <ModelResponse 
-            data={gptBaseResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT_FINETUNED.name}</h3>
-          <ModelResponse 
-            data={gptFineTunedResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT4O_MINI_BASE.name}</h3>
-          <ModelResponse 
-            data={gpt4oMiniBaseResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-        
-        <div className="response-item">
-          <h3>{MODEL_CONFIG.GPT4O_MINI_FINETUNED.name}</h3>
-          <ModelResponse 
-            data={gpt4oMiniFineTunedResponse} 
-            isLoading={isLoading} 
-            error={error} 
-          />
-        </div>
-      </div>
-
-      {showVisualization && (
-        <div className="comparison-section">
-          <h2>Performance Comparison</h2>
-          <ModelComparison 
-            gptBase={gptBaseResponse} 
-            gptFinetuned={gptFineTunedResponse}
-            gpt4oMiniBase={gpt4oMiniBaseResponse}
-            gpt4oMiniFinetuned={gpt4oMiniFineTunedResponse}
-          />
+          {showVisualization && (
+            <div className="metrics-section">
+              <h2>Performance Comparison</h2>
+              
+              {getBestModel() && (
+                <div className="best-model">
+                  <p className="best-model-title">
+                    Best Performing Model: {getBestModel()?.name}
+                  </p>
+                  <p className="best-model-description">
+                    Achieved the highest SQL quality score of {formatNumber(getBestModel()?.score || 0)}/100 and demonstrated superior performance in generating accurate SQL queries.
+                  </p>
+                </div>
+              )}
+              
+              <div style={{ marginTop: '1.5rem' }}>
+                <ModelComparison 
+                  gptBase={responses[0]} 
+                  gptFinetuned={responses[1]}
+                  gpt4Base={responses[2]}
+                  gpt4Finetuned={responses[3]}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

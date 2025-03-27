@@ -10,10 +10,11 @@ interface ModelResponseProps {
   error?: string;
 }
 
+type TabType = 'sql' | 'explanation' | 'raw';
+
 const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading, error }) => {
   const [copySuccess, setCopySuccess] = useState<boolean>(false);
-  const [showExplanation, setShowExplanation] = useState<boolean>(false);
-  const [showRawResponse, setShowRawResponse] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<TabType>('sql');
   
   // Function to detect if the response is SQL
   const isSqlResponse = (response: string): boolean => {
@@ -23,12 +24,32 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
 
   // Function to extract SQL from a response that might contain explanatory text
   const extractSql = (response: string): string => {
+    // Check for SQL in markdown code blocks first
+    if (response.includes('```sql')) {
+      const parts = response.split('```sql');
+      if (parts.length >= 2) {
+        const sqlAndRest = parts[1].split('```');
+        if (sqlAndRest.length > 0) {
+          return sqlAndRest[0].trim();
+        }
+      }
+    }
+    
+    // Check for any code blocks as fallback
+    if (response.includes('```')) {
+      const parts = response.split('```');
+      // If we have an odd number of ``` markers and at least 3, assume the even-indexed parts are code
+      if (parts.length >= 3) {
+        return parts[1].trim();
+      }
+    }
+    
     // If it's already just SQL, return it
     if (response.trim().toUpperCase().startsWith('SELECT')) {
       return response;
     }
     
-    // Try to find SQL in the response
+    // Try to find SQL in the response by keywords
     const lines = response.split('\n');
     const sqlLines = [];
     let inSqlBlock = false;
@@ -55,6 +76,23 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
       });
   };
 
+  // Function to get quality score class
+  const getScoreClass = (score?: number): string => {
+    if (!score && score !== 0) return '';
+    
+    if (score >= 80) return 'good';
+    if (score >= 60) return 'average';
+    return 'poor';
+  };
+
+  // Helper function to format numbers (only show decimals if needed)
+  const formatNumber = (value: number): string => {
+    if (Math.floor(value) === value) {
+      return value.toString(); // Show as integer if it's a whole number
+    }
+    return value.toFixed(2); // Round to 2 decimal places otherwise
+  };
+
   // Function to get quality score label and color
   const getQualityLabel = (score?: number): { label: string, color: string } => {
     if (!score && score !== 0) return { label: 'N/A', color: '#888' };
@@ -70,31 +108,38 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
     <div className="model-response-container">
       {data?.model && (
         <div className="model-header">
-          <h4>{data.model}</h4>
-          <div className="metrics-container">
-            {data.executionTime !== undefined && (
-              <span className="metric execution-time" title="Total time from request to response, including network latency">
-                <i className="metric-icon">⏱️</i>
-                <span className="metric-label">Response Time:</span> {data.executionTime}ms
+          <span className="model-name">{data.model}</span>
+        </div>
+      )}
+      
+      {data && (
+        <div className="model-metrics">
+          {data.sqlQualityScore !== undefined && (
+            <div className="metric">
+              <span className="metric-name">SQL Quality Score</span>
+              <span className={`metric-value ${getScoreClass(data.sqlQualityScore)}`}>
+                {formatNumber(data.sqlQualityScore || 0)}
               </span>
-            )}
-            {data.sqlQualityScore !== undefined && (
-              <span 
-                className="metric quality-score"
-                style={{ color: getQualityLabel(data.sqlQualityScore).color }}
-                title="Calculated quality score based on SQL structure and best practices"
-              >
-                <i className="metric-icon">⭐</i>
-                <span className="metric-label">Quality:</span> {data.sqlQualityScore}/100
+            </div>
+          )}
+          
+          {data.executionTime !== undefined && (
+            <div className="metric">
+              <span className="metric-name">Response Time</span>
+              <span className="metric-value">
+                {formatNumber(data.executionTime || 0)} ms
               </span>
-            )}
-            {data.responseLength !== undefined && (
-              <span className="metric response-length" title="Total length of the generated response">
-                <i className="metric-icon">📏</i>
-                <span className="metric-label">Length:</span> {data.responseLength} chars
+            </div>
+          )}
+          
+          {data.responseLength !== undefined && (
+            <div className="metric">
+              <span className="metric-name">Response Length</span>
+              <span className="metric-value">
+                {data.responseLength || 0}
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
       
@@ -110,57 +155,69 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
         <div className="response-content">
           {isSqlResponse(data.response) ? (
             <div className="sql-response-container">
-              <div className="sql-header">
-                <div className="sql-info">
-                  <span className="sql-label">SQL Query</span>
-                  {data.complexityEstimate && (
-                    <span className="complexity-badge">
-                      Complexity: {data.complexityEstimate}
-                    </span>
+              <div className="response-tabs">
+                <button 
+                  className={`tab-button ${activeTab === 'sql' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('sql')}
+                >
+                  SQL Query
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'explanation' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('explanation')}
+                >
+                  Explanation
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'raw' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('raw')}
+                >
+                  Raw Response
+                </button>
+                <div className="tab-actions">
+                  {activeTab === 'sql' && (
+                    <button 
+                      className={`copy-button ${copySuccess ? 'success' : ''}`}
+                      onClick={() => copyToClipboard(extractSql(data.response))}
+                    >
+                      {copySuccess ? 'Copied!' : 'Copy SQL'}
+                    </button>
                   )}
                 </div>
-                <div className="sql-actions">
-                  <button 
-                    className={`explanation-button ${showExplanation ? 'active' : ''}`}
-                    onClick={() => setShowExplanation(!showExplanation)}
-                  >
-                    {showExplanation ? 'Hide Explanation' : 'Show Explanation'}
-                  </button>
-                  <button 
-                    className={`debug-button ${showRawResponse ? 'active' : ''}`}
-                    onClick={() => setShowRawResponse(!showRawResponse)}
-                  >
-                    {showRawResponse ? 'Hide Raw' : 'Show Raw'}
-                  </button>
-                  <button 
-                    className={`copy-button ${copySuccess ? 'success' : ''}`}
-                    onClick={() => copyToClipboard(extractSql(data.response))}
-                  >
-                    {copySuccess ? 'Copied!' : 'Copy SQL'}
-                  </button>
-                </div>
               </div>
-              <SyntaxHighlighter 
-                language="sql" 
-                style={vscDarkPlus}
-                customStyle={{ borderRadius: '8px', margin: '0' }}
-              >
-                {extractSql(data.response)}
-              </SyntaxHighlighter>
               
-              {showExplanation && (
-                <div className="sql-explanation">
-                  <h4>Explanation</h4>
-                  <p>{data.explanation || 'No explanation provided by the model.'}</p>
-                </div>
-              )}
-              
-              {showRawResponse && data.rawResponse && (
-                <div className="raw-response">
-                  <h4>Raw Model Response</h4>
-                  <pre>{data.rawResponse}</pre>
-                </div>
-              )}
+              <div className="tab-content">
+                {activeTab === 'sql' && (
+                  <div className="sql-tab">
+                    {data.complexityEstimate && (
+                      <div className="complexity-info">
+                        <span className="complexity-badge">
+                          Complexity: {data.complexityEstimate}
+                        </span>
+                      </div>
+                    )}
+                    <SyntaxHighlighter 
+                      language="sql" 
+                      style={vscDarkPlus}
+                      customStyle={{ borderRadius: '8px', margin: '0' }}
+                    >
+                      {extractSql(data.response)}
+                    </SyntaxHighlighter>
+                  </div>
+                )}
+                
+                {activeTab === 'explanation' && (
+                  <div className="explanation-tab">
+                    <p>{data.explanation || 'No explanation provided by the model.'}</p>
+                  </div>
+                )}
+                
+                {activeTab === 'raw' && data.rawResponse && (
+                  <div className="raw-tab">
+                    <pre>{data.rawResponse}</pre>
+                  </div>
+                )}
+              </div>
               
               <div className="advanced-metrics">
                 <h4>Advanced Metrics</h4>
@@ -169,7 +226,7 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                     <div className="advanced-metric">
                       <span className="metric-label">Execution Accuracy:</span>
                       <span className="metric-value" style={{ color: getQualityLabel(data.executionAccuracy).color }}>
-                        {data.executionAccuracy}/100
+                        {formatNumber(data.executionAccuracy || 0)}/100
                       </span>
                       <span className="metric-description">Measures how accurately the SQL query can be executed</span>
                     </div>
@@ -179,7 +236,7 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                     <div className="advanced-metric">
                       <span className="metric-label">Math Accuracy:</span>
                       <span className="metric-value" style={{ color: getQualityLabel(data.exactMathAccuracy).color }}>
-                        {data.exactMathAccuracy}/100
+                        {formatNumber(data.exactMathAccuracy || 0)}/100
                       </span>
                       <span className="metric-description">Evaluates precision of mathematical operations</span>
                     </div>
@@ -189,7 +246,7 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                     <div className="advanced-metric">
                       <span className="metric-label">Efficiency Score:</span>
                       <span className="metric-value" style={{ color: getQualityLabel(data.validEfficiencyScore).color }}>
-                        {data.validEfficiencyScore}/100
+                        {formatNumber(data.validEfficiencyScore || 0)}/100
                       </span>
                       <span className="metric-description">Assesses query optimization and efficiency</span>
                     </div>
@@ -201,24 +258,24 @@ const ModelResponseComponent: React.FC<ModelResponseProps> = ({ data, isLoading,
                 <div className="tokens-info">
                   {data.tokensGenerated && (
                     <span title="Approximate number of tokens in the generated response">
-                      <strong>Tokens:</strong> ~{data.tokensGenerated}
+                      <strong>Tokens:</strong> ~{Math.round(data.tokensGenerated || 0)}
                     </span>
                   )}
                   {data.tokensPerSecond && (
                     <span title="Tokens generated per second (includes network latency)">
-                      <strong>Generation Rate:</strong> {data.tokensPerSecond} tokens/sec
+                      <strong>Generation Rate:</strong> {formatNumber(data.tokensPerSecond)}/sec
                     </span>
                   )}
                 </div>
               )}
             </div>
           ) : (
-            <p className="text-response">{data.response}</p>
+            <pre className="text-response">{data.response}</pre>
           )}
         </div>
       ) : (
         <div className="empty-response">
-          <p>No response yet</p>
+          <p>No response available</p>
         </div>
       )}
     </div>

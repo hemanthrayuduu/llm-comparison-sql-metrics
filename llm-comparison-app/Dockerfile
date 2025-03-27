@@ -1,29 +1,26 @@
-FROM node:18-alpine as build
+# Use Node.js LTS version
+FROM node:18-alpine
 
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application
+# Copy project files
 COPY . .
 
-# Build the application
+# Build the app
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Install serve to run the application
+RUN npm install -g serve
 
-# Copy the build output to replace the default nginx contents
-COPY --from=build /app/dist /usr/share/nginx/html
+# Expose the port
+EXPOSE 3000
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"] 
+# Start the application
+CMD ["serve", "-s", "dist", "-l", "3000"] 

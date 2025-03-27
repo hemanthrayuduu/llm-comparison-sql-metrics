@@ -1,0 +1,117 @@
+.chart-container {
+  margin: 0;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem 1.5rem 2rem 1.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.1);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+}
+
+.chart-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--primary-color, #6366f1);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.chart-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 50px;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.8), rgba(139, 92, 246, 0.8));
+  border-radius: 3px;
+}
+
+.recharts-wrapper {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.custom-tooltip {
+  background-color: rgba(17, 24, 39, 0.95);
+  border-radius: 8px;
+  padding: 0.875rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 180px;
+}
+
+.tooltip-label {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  display: block;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 0.5rem;
+}
+
+.tooltip-data {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8125rem;
+  padding: 0.25rem 0;
+}
+
+.tooltip-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.tooltip-value {
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.chart-container .recharts-cartesian-grid-horizontal line,
+.chart-container .recharts-cartesian-grid-vertical line {
+  stroke: rgba(99, 102, 241, 0.1);
+}
+
+.chart-container .recharts-cartesian-axis-line {
+  stroke: rgba(99, 102, 241, 0.2);
+}
+
+.chart-container .recharts-cartesian-axis-tick-line {
+  stroke: rgba(99, 102, 241, 0.2);
+}
+
+.chart-container .recharts-text {
+  fill: var(--text-secondary, #4b5563);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.chart-container .recharts-legend-item-text {
+  color: var(--text-primary, #111827) !important;
+}
+
+.chart-container .recharts-tooltip-cursor {
+  fill: rgba(99, 102, 241, 0.1);
+}
+
+@media (max-width: 640px) {
+  .chart-container {
+    padding: 1rem;
+  }
+  
+  .chart-title {
+    font-size: 1rem;
+  }
+} 
