@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ModelResponse as ModelResponseType } from '../services/api';
+import { ModelResponse as ModelResponseType, sequentialQueryModels } from '../services/api';
 import ModelComparison from './ModelComparison';
 import './ComparisonPage.css';
 import { sampleQueries } from '../data/sampleQueries';
@@ -30,58 +30,13 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
       console.log('Querying models with prompt:', query);
       console.log('Using schema:', schema);
       
-      // Log the combined prompt but we're using mock data for now
+      // Create a combined prompt with the schema if provided
       const combinedPrompt = schema 
         ? `Given the following database schema:\n\n${schema}\n\n${query}`
         : query;
-      console.log('Combined prompt (for real API):', combinedPrompt);
       
-      // Mock response for demonstration since getSQLResponses doesn't exist
-      const mockResults = {
-        gptBase: {
-          model: "GPT-3.5 Turbo",
-          sql: "SELECT * FROM users WHERE active = true",
-          response: "Here is the SQL query to find active users:\n```sql\nSELECT * FROM users WHERE active = true;\n```",
-          sqlQualityScore: 85,
-          executionAccuracy: 90,
-          exactMathAccuracy: 88,
-          validEfficiencyScore: 78,
-          executionTime: 345
-        },
-        gptFinetuned: {
-          model: "GPT-3.5 Turbo (Fine-tuned)",
-          sql: "SELECT * FROM users WHERE active = true ORDER BY created_at DESC",
-          response: "Here's the SQL query to retrieve active users, ordered by creation date:\n```sql\nSELECT * FROM users WHERE active = true ORDER BY created_at DESC;\n```",
-          sqlQualityScore: 92,
-          executionAccuracy: 95,
-          exactMathAccuracy: 90,
-          validEfficiencyScore: 85,
-          executionTime: 320
-        },
-        gpt4Base: {
-          model: "GPT-4o Mini",
-          sql: "SELECT * FROM users WHERE active = true ORDER BY created_at DESC LIMIT 10",
-          response: "To find active users, ordered by creation date with a limit of 10 records:\n```sql\nSELECT * FROM users WHERE active = true ORDER BY created_at DESC LIMIT 10;\n```",
-          sqlQualityScore: 95,
-          executionAccuracy: 97,
-          exactMathAccuracy: 93,
-          validEfficiencyScore: 88,
-          executionTime: 380
-        },
-        gpt4Finetuned: {
-          model: "GPT-4o Mini (Fine-tuned)",
-          sql: "SELECT id, username, email, created_at FROM users WHERE active = true ORDER BY created_at DESC LIMIT 10",
-          response: "Here's an optimized SQL query to retrieve the most recently created active users:\n```sql\nSELECT id, username, email, created_at FROM users WHERE active = true ORDER BY created_at DESC LIMIT 10;\n```",
-          sqlQualityScore: 98,
-          executionAccuracy: 99,
-          exactMathAccuracy: 95,
-          validEfficiencyScore: 90,
-          executionTime: 360
-        }
-      };
-      
-      // Use mock results instead of calling the API
-      const results = mockResults;
+      // Call the API with the combined prompt
+      const results = await sequentialQueryModels(combinedPrompt);
       
       if (Array.isArray(results)) {
         setResponses(results);
