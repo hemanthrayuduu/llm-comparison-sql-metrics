@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ModelResponse as ModelResponseType } from '../services/api';
 import { queryModel } from '../services/api';
 import { MODEL_CONFIG } from '../services/api';
@@ -19,7 +19,6 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [responses, setResponses] = useState<ModelResponseType[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
-  const [isCustomQuery, setIsCustomQuery] = useState<boolean>(true);
   const [showVisualization, setShowVisualization] = useState<boolean>(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -56,7 +55,6 @@ const ComparisonPage: React.FC<ComparisonPageProps> = () => {
     setSchema('');
     setResponses([]);
     setError(undefined);
-    setIsCustomQuery(true);
     setShowVisualization(false);
   };
 
