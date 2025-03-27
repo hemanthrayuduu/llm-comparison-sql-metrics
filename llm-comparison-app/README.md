@@ -2,6 +2,33 @@
 
 A React application for comparing different LLM models' SQL generation capabilities with comprehensive metrics visualization.
 
+**Live Demo:** [https://llm-comparison-sql-metrics.onrender.com/](https://llm-comparison-sql-metrics.onrender.com/)
+
+## Model Fine-tuning
+
+A key aspect of this project is the fine-tuning of language models for SQL generation. Both GPT-3.5 Turbo and GPT-4o Mini models were fine-tuned using the Low-Rank Adaptation (LoRA) technique to enhance their SQL generation capabilities.
+
+### Fine-tuning Process
+
+- **Dataset**: Models were fine-tuned using the [Gretel AI Synthetic Text-to-SQL dataset](https://huggingface.co/datasets/gretelai/synthetic_text_to_sql)
+- **Technique**: Low-Rank Adaptation (LoRA) was employed, which is memory-efficient and trains only a small set of weights while freezing the pre-trained model parameters
+- **Training Focus**: The models were specifically optimized for:
+  - Improved schema understanding
+  - Better translation of natural language to SQL syntax
+  - Enhanced handling of complex queries
+  - More efficient and optimized SQL generation
+
+### Performance Improvements
+
+Fine-tuning resulted in significant improvements across multiple metrics:
+- Higher SQL quality scores
+- Better execution accuracy
+- Improved mathematical accuracy in aggregations
+- Enhanced query efficiency
+- Reduced response times
+
+The comparison tool allows you to directly compare the base models with their fine-tuned versions to observe these improvements.
+
 ## Features
 
 - Compare four LLM models side-by-side: GPT-3.5 Turbo, GPT-3.5 Turbo (Fine-tuned), GPT-4o Mini, and GPT-4o Mini (Fine-tuned)
